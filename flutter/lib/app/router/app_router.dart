@@ -8,6 +8,7 @@ import '../../features/auth/presentation/pages/password_reset_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/pages/suspended_page.dart';
+import '../../features/coupon/presentation/pages/coupon_search_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/remote_legal_page.dart';
 import '../../features/support/presentation/pages/support_page.dart';
@@ -72,10 +73,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.coupon,
-        builder: (context, state) => const FeaturePlaceholderPage(
-          title: 'Coupon search',
-          detail: 'Coupon verification is being migrated.',
-        ),
+        builder: (context, state) => const CouponSearchPage(),
       ),
       GoRoute(
         path: AppRoutes.games,
