@@ -1,0 +1,119 @@
+import 'package:flutter/services.dart';
+
+/// Narrow MethodChannel boundary for Android-only cookie/session/media work.
+/// No password or app-gate-cookie value is ever returned through this API.
+class NativePlatformBridge {
+  NativePlatformBridge({MethodChannel? channel})
+      : _channel = channel ?? const MethodChannel(_channelName);
+
+  static const String _channelName = 'pynith.apps.nextel/native';
+  final MethodChannel _channel;
+
+  Future<Map<String, Object?>?> loadRuntimeConfig() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, Object?>(
+        'runtimeConfig',
+      );
+      return result;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  Future<bool> ensureAppGateCookie() async {
+    try {
+      return await _channel.invokeMethod<bool>('ensureAppGateCookie') ?? false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<String?> getCookieHeader(Uri uri) async {
+    try {
+      return await _channel.invokeMethod<String>(
+        'getCookieHeader',
+        {'url': uri.toString()},
+      );
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  Future<bool> setCookies(Uri uri, List<String> cookies) async {
+    if (cookies.isEmpty) return true;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'setCookies',
+            {'url': uri.toString(), 'cookies': cookies},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<void> flushCookies() async {
+    try {
+      await _channel.invokeMethod<bool>('flushCookies');
+    } on MissingPluginException {
+      // Cookies are shared automatically on Android; a missing flush hook
+      // should not make otherwise valid API responses fail.
+    }
+  }
+
+  Future<bool> clearWebSession() async {
+    try {
+      return await _channel.invokeMethod<bool>('clearWebSession') ?? false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<Map<String, Object?>?> readLegacyData() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, Object?>(
+        'readLegacyData',
+      );
+      return result;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  Future<bool> completeLegacyImport() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'completeLegacyImport',
+            const {'complete': true},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<bool> saveCanvasImage(String data) async =>
+      await _channel.invokeMethod<bool>(
+        'saveCanvasImage',
+        {'data': data},
+      ) ??
+      false;
+
+  Future<bool> shareCanvasImage(String data) async =>
+      await _channel.invokeMethod<bool>(
+        'shareCanvasImage',
+        {'data': data},
+      ) ??
+      false;
+
+  /// Opens Android's image-only ACTION_CHOOSER with gallery and camera intents.
+  /// The returned URI is a short-lived content URI, not a file-system path.
+  Future<Uri?> chooseWebViewImage() async {
+    try {
+      final value = await _channel.invokeMethod<String>('chooseWebViewImage');
+      return value == null ? null : Uri.tryParse(value);
+    } on MissingPluginException {
+      return null;
+    }
+  }
+}

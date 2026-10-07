@@ -1,0 +1,104 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def setting = { String gradleName, String environmentName, String fallback ->
+    project.findProperty(gradleName) ?: System.getenv(environmentName) ?: fallback
+}
+def buildConfigString = { String value ->
+    '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+
+def productionWebBaseUrl = setting(
+        "nextelWebBaseUrl", "NEXTEL_WEB_BASE_URL", "https://easyportaltopupxyz.com"
+).replaceAll("/+$", "")
+def productionApiBaseUrl = setting(
+        "nextelApiBaseUrl", "NEXTEL_API_BASE_URL", "${productionWebBaseUrl}/api/v1"
+).replaceAll("/+$", "")
+def debugWebBaseUrl = setting(
+        "nextelDebugWebBaseUrl", "NEXTEL_DEBUG_WEB_BASE_URL", "https://api.n-calls.com"
+).replaceAll("/+$", "")
+def debugApiBaseUrl = setting(
+        "nextelDebugApiBaseUrl", "NEXTEL_DEBUG_API_BASE_URL", "${debugWebBaseUrl}/api/v1"
+).replaceAll("/+$", "")
+def frontBaseUrl = setting(
+        "nextelFrontBaseUrl", "NEXTEL_FRONTBASE_URL", productionWebBaseUrl
+).replaceAll("/+$", "")
+def updateApiBaseUrl = setting(
+        "nextelUpdateApiBaseUrl", "NEXTEL_UPDATE_API_BASE_URL", "https://fakelife.online/api/v1"
+).replaceAll("/+$", "")
+
+// The app-gate value is supplied by protected native build configuration only.
+def appGateCookie = setting("nextelAppGateCookie", "NEXTEL_APP_GATE_COOKIE", "")
+
+// Never keep a release key or password in source control or in a fallback value.
+def releaseStoreFile = setting("NEXTEL_RELEASE_STORE_FILE", "NEXTEL_RELEASE_STORE_FILE", "")
+def releaseStorePassword = setting("NEXTEL_RELEASE_STORE_PASSWORD", "NEXTEL_RELEASE_STORE_PASSWORD", "")
+def releaseKeyAlias = setting("NEXTEL_RELEASE_KEY_ALIAS", "NEXTEL_RELEASE_KEY_ALIAS", "")
+def releaseKeyPassword = setting("NEXTEL_RELEASE_KEY_PASSWORD", "NEXTEL_RELEASE_KEY_PASSWORD", "")
+def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+        .every { !it.toString().trim().isEmpty() }
+
+android {
+    namespace = "pynith.apps.nextel"
+    compileSdk = 36
+    ndkVersion = flutter.ndkVersion
+
+    defaultConfig {
+        applicationId = "pynith.apps.nextel"
+        minSdk = 23
+        targetSdk = 34
+        versionCode = 4
+        versionName = "3.5.alpha"
+        buildConfigField "String", "WEB_BASE_URL", buildConfigString(productionWebBaseUrl)
+        buildConfigField "String", "API_BASE_URL", buildConfigString(productionApiBaseUrl)
+        buildConfigField "String", "FRONTBASE_URL", buildConfigString(frontBaseUrl)
+        buildConfigField "String", "UPDATE_API_BASE_URL", buildConfigString(updateApiBaseUrl)
+        buildConfigField "String", "APP_GATE_COOKIE", buildConfigString(appGateCookie)
+    }
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            buildConfigField "String", "WEB_BASE_URL", buildConfigString(debugWebBaseUrl)
+            buildConfigField "API_BASE_URL", buildConfigString(debugApiBaseUrl)
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+flutter {
+    source = "../.."
+}
