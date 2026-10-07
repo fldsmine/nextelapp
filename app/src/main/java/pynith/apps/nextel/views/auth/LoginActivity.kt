@@ -56,15 +56,13 @@ class LoginActivity : BaseActivity() {
         }
     }
 
-    private fun login(uname: String? = null, pass: String? = null,
-                      biometric: Boolean = false
-    ) {
+    private fun login() {
         bind.emailLayout.error = null
         bind.passwordLayout.error = null
 
-        val login = uname ?: bind.username.text?.toString()?.trim().orEmpty()
+        val login = bind.username.text?.toString()?.trim().orEmpty()
         // Passwords may legitimately contain leading or trailing spaces.
-        val password = pass ?: bind.password.text?.toString().orEmpty()
+        val password = bind.password.text?.toString().orEmpty()
 
         if (login.isBlank()) {
             bind.emailLayout.error = "Email or username is required"
@@ -95,7 +93,6 @@ class LoginActivity : BaseActivity() {
 
                         try {
                             session.saveSession(token, bind.rememberMe.isChecked)
-                            session.saveCredentials(login, password)
                         } catch (_: Exception) {
                             toast("Could not securely save this session. Please try again.")
                             return@runOnUiThread
@@ -132,7 +129,7 @@ class LoginActivity : BaseActivity() {
                         setLoading(false)
                         when {
                             result.error.statusCode == 401 -> {
-                                //session.clearSession()
+                                session.clearSession()
                                 updateBiometricButton()
                             }
                             result.error.statusCode == 403 -> showSuspended(
@@ -248,28 +245,15 @@ class LoginActivity : BaseActivity() {
             return
         }
 
-        val u = session.getUserName()
-        val p = session.getUserPass()
-
-        if (u.isEmpty() || p.isEmpty()) {
-            toast("Device not set as trusted device")
-            return
-        }
-
-        if (u == "" || p == "") {
-            toast("Device not set as trusted device")
-            return
-        }
-
         val executor: Executor = ContextCompat.getMainExecutor(this)
         val prompt = BiometricPrompt(
             this,
             executor,
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    // The biometric prompt unlocks access to the Keystore-backed
+                    // session token; never persist or replay the user's password.
                     validateStoredSession()
-                    login(u, p, biometric = true)
-
                 }
             }
         )

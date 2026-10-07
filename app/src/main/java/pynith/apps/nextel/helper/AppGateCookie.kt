@@ -5,10 +5,10 @@ import android.webkit.CookieManager
 import pynith.apps.nextel.BuildConfig
 
 /**
- * Installs the `app_gate` entry cookie that every request to the web origin
- * (https://easyportaltopupxyz.com) must carry, or the server does not return
- * a usable response. This covers WebView navigations, page subresources and
- * the native API client ([NextelApi]) alike.
+ * Installs the `app_gate` entry cookie required by the configured web origin.
+ * Its value is supplied via the protected `NEXTEL_APP_GATE_COOKIE` build
+ * input, not embedded in source. This covers WebView navigations, page
+ * subresources and the native API client ([NextelApi]) alike.
  *
  * The cookie is stored in the shared WebView cookie store
  * (android.webkit.CookieManager) rather than injected as a request header, so
@@ -18,8 +18,6 @@ import pynith.apps.nextel.BuildConfig
 object AppGateCookie {
 
     private const val NAME = "app_gate"
-    private const val VALUE = "bd296beddd7166ff35872490a2702af4d5bc"
-    //private const val VALUE = "bd296beddd7460fd4a26b4d7258e534eea027c9166ff35872490a2702af4d5bc"
 
     /**
      * Idempotently writes the gate cookie and persists it.
@@ -40,12 +38,18 @@ object AppGateCookie {
         val webBase = Uri.parse(BuildConfig.WEB_BASE_URL)
         val host = webBase.host ?: return
         val scheme = webBase.scheme?.takeIf { it.isNotBlank() } ?: "https"
+        val value = BuildConfig.APP_GATE_COOKIE.trim()
+
+        // The cookie is provided only by protected build configuration. If it
+        // is omitted, leave any cookie already present in the WebView store
+        // untouched instead of replacing it with an empty or source default.
+        if (value.isBlank()) return
 
         // Domain cookie for the web host and its subdomains, every path,
         // secure transports only.
         cookieManager.setCookie(
             "$scheme://$host/",
-            "$NAME=$VALUE; Domain=$host; Path=/; Secure"
+            "$NAME=$value; Domain=$host; Path=/; Secure"
         )
 
         // setCookie() has already updated the in-memory store that the next

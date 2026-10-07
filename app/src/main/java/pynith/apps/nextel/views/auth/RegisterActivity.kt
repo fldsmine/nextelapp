@@ -271,14 +271,14 @@ class RegisterActivity : BaseActivity() {
                 setLoading(false)
 
                 when (result) {
-                    is ApiResult.Success -> handleRegistrationSuccess(result.data, email, username, password)
+                    is ApiResult.Success -> handleRegistrationSuccess(result.data, email)
                     is ApiResult.Failure -> showRegistrationErrors(result.error)
                 }
             }
         }
     }
 
-    private fun handleRegistrationSuccess(data: JSONObject, enteredEmail: String, username: String, password: String) {
+    private fun handleRegistrationSuccess(data: JSONObject, enteredEmail: String) {
         val token = data.optString("token")
         if (token.isBlank()) {
             toast("The server did not return a sign-in token.")
@@ -287,7 +287,6 @@ class RegisterActivity : BaseActivity() {
 
         val registrationSession = SessionService(this)
         try {
-            registrationSession.saveCredentials(username, password)
             registrationSession.saveSession(
                 token,
                 registrationSession.shouldRememberSession(),
