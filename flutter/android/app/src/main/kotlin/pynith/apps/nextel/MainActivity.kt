@@ -15,8 +15,6 @@ import android.provider.MediaStore
 import android.util.Base64
 import android.webkit.CookieManager
 import android.webkit.WebStorage
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -39,21 +37,11 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class MainActivity : FlutterActivity() {
     private lateinit var channel: MethodChannel
-    private lateinit var imageChooserLauncher: ActivityResultLauncher<Intent>
     private var pendingImageChooserResult: MethodChannel.Result? = null
     private var pendingCameraPhotoUri: Uri? = null
     private var pendingCameraPhotoFile: File? = null
     private var pendingCanvasBytes: ByteArray? = null
     private var pendingCanvasResult: MethodChannel.Result? = null
-
-    override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        super.onCreate(savedInstanceState)
-        imageChooserLauncher = registerForActivityResult(
-            ActivityResultContracts.StartActivityForResult()
-        ) { activityResult ->
-            completeImageChooser(activityResult.resultCode, activityResult.data)
-        }
-    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -343,6 +331,7 @@ class MainActivity : FlutterActivity() {
     }
 
     /** Shows the same image gallery + external-camera chooser used by the legacy WebView. */
+    @Suppress("DEPRECATION")
     private fun chooseWebViewImage(result: MethodChannel.Result) {
         pendingImageChooserResult?.success(null)
         pendingCameraPhotoFile?.delete()
@@ -389,7 +378,7 @@ class MainActivity : FlutterActivity() {
             }
         }
         try {
-            imageChooserLauncher.launch(chooserIntent)
+            startActivityForResult(chooserIntent, REQUEST_WEB_IMAGE_CHOOSER)
         } catch (_: ActivityNotFoundException) {
             pendingImageChooserResult = null
             pendingCameraPhotoFile?.delete()
@@ -403,6 +392,15 @@ class MainActivity : FlutterActivity() {
             pendingCameraPhotoUri = null
             result.error("image_chooser_failed", "Could not open the image picker.", null)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == REQUEST_WEB_IMAGE_CHOOSER) {
+            completeImageChooser(resultCode, data)
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun completeImageChooser(resultCode: Int, data: Intent?) {
@@ -565,6 +563,7 @@ class MainActivity : FlutterActivity() {
         const val CHANNEL_NAME = "pynith.apps.nextel/native"
         const val APP_GATE_COOKIE_NAME = "app_gate"
         const val REQUEST_WRITE_CANVAS_PERMISSION = 7314
+        const val REQUEST_WEB_IMAGE_CHOOSER = 20046
         const val MAX_CANVAS_BYTES = 32 * 1024 * 1024
 
         const val LEGACY_APP_PREFS = "app_prefs"
