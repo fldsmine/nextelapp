@@ -10,6 +10,7 @@ import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/pages/suspended_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/remote_legal_page.dart';
+import '../../features/support/presentation/pages/support_page.dart';
 import '../pages/feature_placeholder_page.dart';
 import 'app_routes.dart';
 
@@ -65,9 +66,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.support,
-        builder: (context, state) => const FeaturePlaceholderPage(
-          title: 'Support',
-          detail: 'Support tickets are being migrated.',
+        builder: (context, state) => SupportPage(
+          initialToken: state.extra as String? ?? '',
         ),
       ),
       GoRoute(
