@@ -6,6 +6,7 @@ import '../core/network/nextel_api.dart';
 import '../core/security/native_platform_bridge.dart';
 import '../core/security/session_store.dart';
 import '../features/auth/data/auth_repository.dart';
+import '../features/update/data/update_repository.dart';
 
 final appConfigProvider = Provider<AppConfig>(
   (ref) => throw StateError('AppConfig was not initialized.'),
@@ -36,5 +37,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     config: ref.watch(appConfigProvider),
     nativeBridge: ref.watch(nativePlatformBridgeProvider),
     sessionStore: ref.watch(sessionStoreProvider),
+  );
+});
+
+final updateRepositoryProvider = Provider<UpdateRepository>((ref) {
+  return UpdateRepository(
+    config: ref.watch(appConfigProvider),
+    preferences: ref.watch(sharedPreferencesProvider),
   );
 });

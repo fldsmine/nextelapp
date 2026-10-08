@@ -15,6 +15,8 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/remote_legal_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/support/presentation/pages/support_page.dart';
+import '../../features/update/domain/app_update_info.dart';
+import '../../features/update/presentation/pages/update_page.dart';
 import '../../games/screens/app_game_screen.dart';
 import 'app_routes.dart';
 
@@ -78,6 +80,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.games,
         builder: (context, state) => const AppGameScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.update,
+        builder: (context, state) => UpdatePage(
+          initialUpdate: state.extra is AppUpdateInfo
+              ? state.extra! as AppUpdateInfo
+              : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.about,

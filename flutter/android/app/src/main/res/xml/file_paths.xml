@@ -2,4 +2,5 @@
 <paths>
     <cache-path name="shared_images" path="shared/" />
     <external-files-path name="external_pictures" path="Pictures/" />
+    <files-path name="update_apks" path="updates/" />
 </paths>

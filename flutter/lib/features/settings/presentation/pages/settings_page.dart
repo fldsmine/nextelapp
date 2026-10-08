@@ -197,6 +197,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     await context.push(AppRoutes.coupon);
   }
 
+  Future<void> _openUpdatePage() async {
+    await context.push(AppRoutes.update);
+  }
+
   Future<void> _confirmLogout() async {
     if (_logoutBusy) return;
     final shouldLogout = await showDialog<bool>(
@@ -472,6 +476,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   title: 'Online chat',
                   subtitle: 'Chat with Nextel support',
                   onTap: _openSupport,
+                ),
+                const Divider(height: 1),
+                _actionTile(
+                  context,
+                  icon: Icons.system_update_alt,
+                  title: 'Check for updates',
+                  subtitle: 'Find the latest Nextel version',
+                  onTap: _openUpdatePage,
                 ),
               ],
             ),

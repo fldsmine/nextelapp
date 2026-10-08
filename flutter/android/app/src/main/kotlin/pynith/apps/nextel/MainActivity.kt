@@ -34,8 +34,9 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Deliberately small Android integration seam for shared WebView cookies,
- * Keystore-backed migration of the old app session, and media-store actions.
- * Product screens and flow orchestration live in Flutter.
+ * Keystore-backed migration of the old app session, media-store actions, and
+ * the platform-owned APK installation handoff. Product screens and flow
+ * orchestration live in Flutter.
  */
 class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
@@ -71,6 +72,10 @@ class MainActivity : FlutterFragmentActivity() {
             "requestNotificationPermission" -> requestNotificationPermission(result)
             "setDailyReminder" -> setDailyReminder(call, result)
             "restoreDailyReminders" -> restoreDailyReminders(result)
+            "canInstallApks" -> result.success(canInstallApks())
+            "updateDownloadDirectory" -> result.success(updateDownloadDirectory())
+            "requestInstallApkPermission" -> requestInstallApkPermission(result)
+            "installApk" -> installApk(call, result)
             "saveCanvasImage" -> saveCanvasImage(call, result)
             "shareCanvasImage" -> shareCanvasImage(call, result)
             "chooseWebViewImage" -> chooseWebViewImage(result)
@@ -450,6 +455,75 @@ class MainActivity : FlutterFragmentActivity() {
             canScheduleExact && hasNotificationPermission &&
                 DailyReminderScheduler.scheduleAll(this)
         )
+    }
+
+    private fun updateDownloadDirectory(): String =
+        File(filesDir, "updates").absolutePath
+
+    private fun canInstallApks(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            packageManager.canRequestPackageInstalls()
+
+    private fun requestInstallApkPermission(result: MethodChannel.Result) {
+        if (canInstallApks()) {
+            result.success(true)
+            return
+        }
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName"),
+                ),
+            )
+            result.success(true)
+        } catch (_: ActivityNotFoundException) {
+            result.success(false)
+        } catch (_: Exception) {
+            result.success(false)
+        }
+    }
+
+    private fun installApk(call: MethodCall, result: MethodChannel.Result) {
+        val rawPath = call.argument<String>("filePath")
+        if (rawPath.isNullOrBlank()) {
+            result.error("invalid_apk", "An update file is required.", null)
+            return
+        }
+
+        val updatesDirectory = runCatching { File(filesDir, "updates").canonicalFile }
+            .getOrNull()
+        val apkFile = runCatching { File(rawPath).canonicalFile }.getOrNull()
+        if (updatesDirectory == null || apkFile == null ||
+            apkFile.parentFile?.path != updatesDirectory.path ||
+            !apkFile.isFile || apkFile.length() <= 0L ||
+            !apkFile.name.endsWith(".apk", ignoreCase = true)
+        ) {
+            result.error("invalid_apk", "The update file is missing or invalid.", null)
+            return
+        }
+        if (!canInstallApks()) {
+            result.success(false)
+            return
+        }
+
+        try {
+            val apkUri = FileProvider.getUriForFile(
+                this,
+                "$packageName.provider",
+                apkFile,
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+            result.success(true)
+        } catch (_: ActivityNotFoundException) {
+            result.error("installer_unavailable", "No package installer is available.", null)
+        } catch (_: Exception) {
+            result.error("install_failed", "The update could not be opened.", null)
+        }
     }
 
     private fun requestExactAlarmAccess() {

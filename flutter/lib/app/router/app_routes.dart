@@ -12,6 +12,7 @@ abstract final class AppRoutes {
   static const support = '/support';
   static const coupon = '/coupon';
   static const games = '/games';
+  static const update = '/update';
   static const about = '/about';
   static const faq = '/faq';
 }

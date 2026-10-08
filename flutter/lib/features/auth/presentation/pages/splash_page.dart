@@ -8,6 +8,7 @@ import '../../../../app/providers.dart';
 import '../../../../app/router/app_router.dart';
 import '../../../../app/theme/app_theme.dart';
 import '../../../../core/errors/api_failure.dart';
+import '../../../update/domain/app_update_info.dart';
 import 'suspended_page.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
@@ -30,6 +31,41 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     });
   }
 
+  Future<AppUpdateInfo?> _awaitStartupUpdate(
+    Future<AppUpdateInfo?> pendingCheck,
+  ) async {
+    try {
+      return await pendingCheck.timeout(
+        const Duration(seconds: 1),
+        onTimeout: () => null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<AppUpdateInfo?> _startStartupUpdateCheck() {
+    try {
+      return ref
+          .read(updateRepositoryProvider)
+          .checkForStartup()
+          .catchError((Object _) => null);
+    } catch (_) {
+      return Future.value(null);
+    }
+  }
+
+  Future<bool> _presentStartupUpdate(
+    Future<AppUpdateInfo?> pendingCheck,
+  ) async {
+    final update = await _awaitStartupUpdate(pendingCheck);
+    if (update == null || !mounted) return false;
+    await ref.read(updateRepositoryProvider).markPrompted(update);
+    if (!mounted) return false;
+    context.go(AppRoutes.update, extra: update);
+    return true;
+  }
+
   Future<void> _restoreSession() async {
     if (!mounted) return;
     setState(() {
@@ -37,8 +73,11 @@ class _SplashPageState extends ConsumerState<SplashPage> {
       _error = null;
     });
     final repository = ref.read(authRepositoryProvider);
+    final pendingUpdateCheck = _startStartupUpdateCheck();
     try {
       final user = await repository.validateStoredSession();
+      if (!mounted) return;
+      if (await _presentStartupUpdate(pendingUpdateCheck)) return;
       if (!mounted) return;
       if (user == null) {
         context.go(AppRoutes.login);
@@ -58,6 +97,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
       }
       await _openDashboard();
     } on ApiFailure catch (failure) {
+      if (await _presentStartupUpdate(pendingUpdateCheck)) return;
       if (!mounted) return;
       if (failure.statusCode == 401) {
         context.go(AppRoutes.login);
@@ -75,6 +115,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
         });
       }
     } catch (_) {
+      if (await _presentStartupUpdate(pendingUpdateCheck)) return;
       if (mounted) {
         setState(() {
           _loading = false;

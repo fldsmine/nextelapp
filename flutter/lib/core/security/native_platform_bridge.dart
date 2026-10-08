@@ -156,6 +156,55 @@ class NativePlatformBridge {
     }
   }
 
+  Future<bool> canInstallApks() async {
+    try {
+      return await _channel.invokeMethod<bool>('canInstallApks') ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<String?> updateDownloadDirectory() async {
+    try {
+      return await _channel.invokeMethod<String>('updateDownloadDirectory');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Opens Android's per-app "install unknown apps" permission screen.
+  Future<bool> requestInstallApkPermission() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'requestInstallApkPermission',
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Opens the Android package installer for an APK saved by the updater.
+  Future<bool> installApk(String filePath) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'installApk',
+            {'filePath': filePath},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   Future<bool> writeLegacyAppSetting(String key, Object value) async {
     try {
       return await _channel.invokeMethod<bool>(
