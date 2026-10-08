@@ -171,7 +171,7 @@ class _PasswordResetPageState extends ConsumerState<PasswordResetPage> {
           ),
           if (_generalError != null) ...[
             const SizedBox(height: 10),
-            Text(_generalError!, style: const TextStyle(color: NextelPalette.danger)),
+            Text(_generalError!, style: TextStyle(color: context.nextelColors.danger)),
           ],
           const SizedBox(height: 20),
           FilledButton(

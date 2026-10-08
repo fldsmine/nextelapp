@@ -11,6 +11,7 @@ import '../../features/auth/presentation/pages/suspended_page.dart';
 import '../../features/coupon/presentation/pages/coupon_search_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/remote_legal_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/support/presentation/pages/support_page.dart';
 import '../pages/feature_placeholder_page.dart';
 import 'app_routes.dart';
@@ -60,10 +61,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.settings,
-        builder: (context, state) => const FeaturePlaceholderPage(
-          title: 'App settings',
-          detail: 'Settings migration is in progress.',
-        ),
+        builder: (context, state) => const SettingsPage(),
       ),
       GoRoute(
         path: AppRoutes.support,

@@ -106,6 +106,70 @@ class NativePlatformBridge {
       ) ??
       false;
 
+  Future<bool> notificationPermissionGranted() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'notificationPermissionGranted',
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> requestNotificationPermission() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'requestNotificationPermission',
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> setDailyReminder(bool enabled) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'setDailyReminder',
+            {'enabled': enabled},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> restoreDailyReminders() async {
+    try {
+      return await _channel.invokeMethod<bool>('restoreDailyReminders') ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> writeLegacyAppSetting(String key, Object value) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'writeLegacyAppSetting',
+            {'key': key, 'value': value},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Opens Android's image-only ACTION_CHOOSER with gallery and camera intents.
   /// The returned URI is a short-lived content URI, not a file-system path.
   Future<Uri?> chooseWebViewImage() async {

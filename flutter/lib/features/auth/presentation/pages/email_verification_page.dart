@@ -189,7 +189,7 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
               const SizedBox(height: 8),
               Text(
                 _generalError!,
-                style: const TextStyle(color: NextelPalette.danger),
+                style: TextStyle(color: context.nextelColors.danger),
               ),
             ],
             const SizedBox(height: 18),

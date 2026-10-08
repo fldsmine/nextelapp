@@ -33,6 +33,11 @@ Future<void> main() async {
     sessionStore: sessionStore,
     preferences: preferences,
   ).migrate();
+  if (preferences.getBool('daily_reminder') ?? false) {
+    // Rebuild one-shot alarms after upgrading from the legacy receiver or
+    // returning from a device reboot, without prompting during app startup.
+    await nativeBridge.restoreDailyReminders();
+  }
   await sessionStore.expireUnrememberedSession();
 
   // The native bridge reads its protected build input and never exposes the

@@ -115,9 +115,9 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: NextelPalette.background,
+        backgroundColor: context.nextelColors.background,
         appBar: AppBar(
-          backgroundColor: NextelPalette.primary,
+          backgroundColor: context.nextelColors.primary,
           foregroundColor: Colors.white,
           title: const Text('Coupon verification'),
           leading: IconButton(
@@ -142,7 +142,7 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
                 Text(
                   'Enter a coupon code below to check its validity and view the coupon details.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: NextelPalette.muted,
+                        color: context.nextelColors.muted,
                       ),
                 ),
                 const SizedBox(height: 24),
@@ -221,30 +221,30 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
 
   Widget _buildErrorCard(String message) => Container(
         decoration: BoxDecoration(
-          color: NextelPalette.danger.withValues(alpha: .08),
-          border: Border.all(color: NextelPalette.danger.withValues(alpha: .35)),
+          color: context.nextelColors.danger.withValues(alpha: .08),
+          border: Border.all(color: context.nextelColors.danger.withValues(alpha: .35)),
           borderRadius: BorderRadius.circular(14),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Coupon not found',
               style: TextStyle(
-                color: NextelPalette.danger,
+                color: context.nextelColors.danger,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
-            Text(message, style: const TextStyle(color: NextelPalette.danger)),
+            Text(message, style: TextStyle(color: context.nextelColors.danger)),
           ],
         ),
       );
 
   Widget _buildCouponResult(CouponData coupon) {
     final valid = coupon.isValid;
-    final accent = valid ? NextelPalette.primary : NextelPalette.danger;
+    final accent = valid ? context.nextelColors.primary : context.nextelColors.danger;
     final verificationMessage = coupon.verification?.message;
     final product = coupon.product;
     final batch = coupon.batch;
@@ -292,7 +292,7 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: NextelPalette.surface,
+                  color: context.nextelColors.surface,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -405,8 +405,8 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
 
   Widget _detailsCard(List<Widget> rows) => Container(
         decoration: BoxDecoration(
-          color: NextelPalette.surface,
-          border: Border.all(color: NextelPalette.border),
+          color: context.nextelColors.surface,
+          border: Border.all(color: context.nextelColors.border),
           borderRadius: BorderRadius.circular(16),
         ),
         padding: const EdgeInsets.all(16),
@@ -429,7 +429,7 @@ class _CouponSearchPageState extends ConsumerState<CouponSearchPage> {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: NextelPalette.muted,
+                      color: context.nextelColors.muted,
                     ),
               ),
             ),

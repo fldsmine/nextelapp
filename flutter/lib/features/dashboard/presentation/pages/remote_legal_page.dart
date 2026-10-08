@@ -142,10 +142,10 @@ class _RemoteLegalPageState extends ConsumerState<RemoteLegalPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.cloud_off_outlined,
                           size: 42,
-                          color: NextelPalette.muted,
+                          color: context.nextelColors.muted,
                         ),
                         const SizedBox(height: 12),
                         const Text('Could not load this page.'),

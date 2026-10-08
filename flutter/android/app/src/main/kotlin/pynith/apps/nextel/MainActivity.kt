@@ -2,6 +2,7 @@ package pynith.apps.nextel
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Context
@@ -12,13 +13,14 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Base64
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -35,13 +37,14 @@ import javax.crypto.spec.GCMParameterSpec
  * Keystore-backed migration of the old app session, and media-store actions.
  * Product screens and flow orchestration live in Flutter.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
     private var pendingImageChooserResult: MethodChannel.Result? = null
     private var pendingCameraPhotoUri: Uri? = null
     private var pendingCameraPhotoFile: File? = null
     private var pendingCanvasBytes: ByteArray? = null
     private var pendingCanvasResult: MethodChannel.Result? = null
+    private var pendingNotificationPermissionResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -63,6 +66,11 @@ class MainActivity : FlutterActivity() {
             "clearWebSession" -> clearWebSession(result)
             "readLegacyData" -> readLegacyData(result)
             "completeLegacyImport" -> completeLegacyImport(call, result)
+            "writeLegacyAppSetting" -> writeLegacyAppSetting(call, result)
+            "notificationPermissionGranted" -> result.success(hasNotificationPermission())
+            "requestNotificationPermission" -> requestNotificationPermission(result)
+            "setDailyReminder" -> setDailyReminder(call, result)
+            "restoreDailyReminders" -> restoreDailyReminders(result)
             "saveCanvasImage" -> saveCanvasImage(call, result)
             "shareCanvasImage" -> shareCanvasImage(call, result)
             "chooseWebViewImage" -> chooseWebViewImage(result)
@@ -330,6 +338,141 @@ class MainActivity : FlutterActivity() {
         result.success(true)
     }
 
+    /** Writes only the legacy settings keys still consumed by Android-side integrations. */
+    private fun writeLegacyAppSetting(call: MethodCall, result: MethodChannel.Result) {
+        val key = call.argument<String>("key")
+        if (key == null) {
+            result.error("invalid_setting", "A setting key is required.", null)
+            return
+        }
+        val value = call.argument<Any>("value")
+        val editor = getSharedPreferences(LEGACY_APP_PREFS, Context.MODE_PRIVATE).edit()
+        when (key) {
+            "notifications_enabled", "sound", "vibration", "xbg_biometric_enabled" -> {
+                val booleanValue = value as? Boolean
+                if (booleanValue == null) {
+                    result.error("invalid_setting", "A boolean setting value is required.", null)
+                    return
+                }
+                editor.putBoolean(key, booleanValue)
+            }
+            "fontScale" -> {
+                val scale = (value as? Number)?.toFloat()
+                if (scale == null || !scale.isFinite()) {
+                    result.error("invalid_setting", "A numeric font scale is required.", null)
+                    return
+                }
+                editor.putFloat(key, scale)
+            }
+            "theme", "fontFamily" -> {
+                val text = value as? String
+                if (text == null) {
+                    result.error("invalid_setting", "A text setting value is required.", null)
+                    return
+                }
+                editor.putString(key, text)
+            }
+            else -> {
+                result.error("invalid_setting", "This setting cannot be written from Flutter.", null)
+                return
+            }
+        }
+        editor.apply()
+        result.success(true)
+    }
+
+    private fun requestNotificationPermission(result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            result.success(true)
+            return
+        }
+        if (pendingNotificationPermissionResult != null) {
+            result.success(false)
+            return
+        }
+        pendingNotificationPermissionResult = result
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            REQUEST_NOTIFICATION_PERMISSION,
+        )
+    }
+
+    private fun setDailyReminder(call: MethodCall, result: MethodChannel.Result) {
+        val enabled = call.argument<Boolean>("enabled")
+        if (enabled == null) {
+            result.error("invalid_setting", "A reminder state is required.", null)
+            return
+        }
+        val preferences = getSharedPreferences(LEGACY_APP_PREFS, Context.MODE_PRIVATE)
+        if (!enabled) {
+            preferences.edit().putBoolean("daily_reminder", false).apply()
+            DailyReminderScheduler.cancelAll(this)
+            result.success(true)
+            return
+        }
+        if (!hasNotificationPermission()) {
+            result.success(false)
+            return
+        }
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()
+        ) {
+            requestExactAlarmAccess()
+            result.success(false)
+            return
+        }
+        val scheduled = DailyReminderScheduler.scheduleAll(this)
+        if (scheduled) {
+            preferences.edit().putBoolean("daily_reminder", true).apply()
+        } else {
+            DailyReminderScheduler.cancelAll(this)
+        }
+        result.success(scheduled)
+    }
+
+    private fun restoreDailyReminders(result: MethodChannel.Result) {
+        if (!DailyReminderScheduler.isEnabled(this)) {
+            result.success(true)
+            return
+        }
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val canScheduleExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            alarmManager.canScheduleExactAlarms()
+        val hasNotificationPermission = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        result.success(
+            canScheduleExact && hasNotificationPermission &&
+                DailyReminderScheduler.scheduleAll(this)
+        )
+    }
+
+    private fun requestExactAlarmAccess() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val request = Intent(
+            Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+            Uri.parse("package:$packageName"),
+        )
+        try {
+            startActivity(request)
+        } catch (_: ActivityNotFoundException) {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData(Uri.parse("package:$packageName")),
+            )
+        }
+    }
+
+    private fun hasNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+
     /** Shows the same image gallery + external-camera chooser used by the legacy WebView. */
     @Suppress("DEPRECATION")
     private fun chooseWebViewImage(result: MethodChannel.Result) {
@@ -543,6 +686,12 @@ class MainActivity : FlutterActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
+            val result = pendingNotificationPermissionResult
+            pendingNotificationPermissionResult = null
+            result?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            return
+        }
         if (requestCode != REQUEST_WRITE_CANVAS_PERMISSION) return
 
         val bytes = pendingCanvasBytes
@@ -563,6 +712,7 @@ class MainActivity : FlutterActivity() {
         const val CHANNEL_NAME = "pynith.apps.nextel/native"
         const val APP_GATE_COOKIE_NAME = "app_gate"
         const val REQUEST_WRITE_CANVAS_PERMISSION = 7314
+        const val REQUEST_NOTIFICATION_PERMISSION = 7315
         const val REQUEST_WEB_IMAGE_CHOOSER = 20046
         const val MAX_CANVAS_BYTES = 32 * 1024 * 1024
 

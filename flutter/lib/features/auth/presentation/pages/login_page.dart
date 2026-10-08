@@ -254,7 +254,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             children: [
               Checkbox.adaptive(
                 value: _rememberMe,
-                activeColor: NextelPalette.primary,
+                activeColor: context.nextelColors.primary,
                 onChanged: _loading
                     ? null
                     : (value) async {
@@ -264,8 +264,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         if (next && mounted) _checkBiometricAvailability();
                       },
               ),
-              const Expanded(
-                child: Text('Remember Me', style: TextStyle(color: NextelPalette.muted)),
+              Expanded(
+                child: Text('Remember Me', style: TextStyle(color: context.nextelColors.muted)),
               ),
               TextButton(
                 onPressed: _loading ? null : () => context.push(AppRoutes.reset),
@@ -339,7 +339,7 @@ class _InlineError extends StatelessWidget {
         ),
         child: Text(
           message,
-          style: const TextStyle(color: NextelPalette.danger),
+          style: TextStyle(color: context.nextelColors.danger),
         ),
       );
 }

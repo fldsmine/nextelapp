@@ -136,7 +136,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NextelPalette.primary,
+      backgroundColor: context.nextelColors.primary,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -167,7 +167,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
                     height: 26,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.4,
-                      color: NextelPalette.accent,
+                      color: context.nextelColors.accent,
                     ),
                   ),
                 if (_error != null) ...[

@@ -359,15 +359,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  border: Border.all(color: NextelPalette.border),
+                  border: Border.all(color: context.nextelColors.border),
                   borderRadius: const BorderRadius.horizontal(
                     left: Radius.circular(13),
                   ),
                 ),
                 child: Text(
                   _selectedCountry.dialCode,
-                  style: const TextStyle(
-                    color: NextelPalette.primary,
+                  style: TextStyle(
+                    color: context.nextelColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -442,8 +442,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         TextSpan(
                           text: 'Terms & Conditions',
                           recognizer: _termsTapRecognizer,
-                          style: const TextStyle(
-                            color: NextelPalette.primary,
+                          style: TextStyle(
+                            color: context.nextelColors.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -451,8 +451,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         TextSpan(
                           text: 'Privacy Policy',
                           recognizer: _privacyTapRecognizer,
-                          style: const TextStyle(
-                            color: NextelPalette.primary,
+                          style: TextStyle(
+                            color: context.nextelColors.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -467,13 +467,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           if (_fieldErrors['terms'] != null)
             Text(
               _fieldErrors['terms']!,
-              style: const TextStyle(color: NextelPalette.danger),
+              style: TextStyle(color: context.nextelColors.danger),
             ),
           if (_generalError != null) ...[
             const SizedBox(height: 10),
             Text(
               _generalError!,
-              style: const TextStyle(color: NextelPalette.danger),
+              style: TextStyle(color: context.nextelColors.danger),
             ),
           ],
           const SizedBox(height: 18),

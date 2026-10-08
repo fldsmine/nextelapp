@@ -572,7 +572,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Widget _buildLoadingSurface() => ColoredBox(
-        color: NextelPalette.primary,
+        color: context.nextelColors.primary,
         child: SafeArea(
           child: Center(
             child: Padding(
@@ -593,7 +593,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     height: 28,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: NextelPalette.accent,
+                      color: context.nextelColors.accent,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -616,10 +616,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.cloud_off_outlined,
                   size: 48,
-                  color: NextelPalette.muted,
+                  color: context.nextelColors.muted,
                 ),
                 const SizedBox(height: 14),
                 Text(message, textAlign: TextAlign.center),
@@ -642,7 +642,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                color: NextelPalette.primary,
+                color: context.nextelColors.primary,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -686,7 +686,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       Icons.logout,
                       'Log out',
                       onTap: _confirmLogout,
-                      color: NextelPalette.danger,
+                      color: context.nextelColors.danger,
                     ),
                   ],
                 ),
@@ -703,7 +703,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     Color? color,
   }) =>
       ListTile(
-        leading: Icon(icon, color: color ?? NextelPalette.primary),
+        leading: Icon(icon, color: color ?? context.nextelColors.primary),
         title: Text(title, style: TextStyle(color: color)),
         onTap: () {
           _scaffoldKey.currentState?.closeDrawer();

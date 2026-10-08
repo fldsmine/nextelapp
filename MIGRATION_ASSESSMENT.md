@@ -1,16 +1,28 @@
 # Nextel Android → Flutter Migration Assessment
 
-**Scope:** repository inspection only. The checked-out project is on `arena/9171df30-nextelapp`; the working tree was clean at inspection. No Flutter implementation has been started.
+**Scope:** repository inspection plus incremental implementation notes. Flutter migration work is in progress on `arena/9171df30-nextelapp`; this document is a roadmap, not a claim of release verification. Native Kotlin screens remain in the repository until Flutter parity is verified.
 
 ## 1. Existing application architecture
 
-- This is a native Android app using Kotlin and some Java, XML layouts, View/Data Binding, AndroidX, and Material Components. It is **not** Jetpack Compose, and the repository contains no Flutter `lib/`, `pubspec.yaml`, or Dart tests.
+- The source product is a native Android app using Kotlin and some Java, XML layouts, View/Data Binding, AndroidX, and Material Components. It is **not** Jetpack Compose. A Flutter project now lives under `flutter/` alongside the retained Android implementation.
 - App identity is `pynith.apps.nextel` / **Nextel**. Android config is min SDK 23, target SDK 34, compile SDK 36, version `3.5.alpha` / code 4, with debug and release build types and no product flavors.
-- The user journey is: animated splash → native login/register/verification/reset → bearer-token validation → `web-session` API handoff → authenticated Laravel/Livewire dashboard in Android `WebView`.
+- The original native user journey was: animated splash → login/register/verification/reset → bearer-token validation → `web-session` API handoff → authenticated Laravel/Livewire dashboard in Android `WebView`.
 - The repository does **not** contain the Laravel backend or the Livewire dashboard source. The dashboard, profile, and VAS/feature pages are remote web pages; native reconstruction of those pages cannot be derived from this checkout. The parity-preserving default is to keep that dashboard in a Flutter WebView and migrate the Android-owned screens and bridge behavior.
 - There is a central OkHttp JSON client and helper/service classes, but no consistent ViewModel/repository/domain layering. UI and state live mostly in Activities; the three games have separate rule/controller classes.
 
 ## 2. Screen and flow checklist
+
+### Incremental migration status (2026-10-08)
+
+| Area | Flutter status | Verification status |
+|---|---|---|
+| Auth and account recovery | Implemented | Analyzer, tests, Android build and device flow remain pending. |
+| Dashboard WebView and native bridge | Implemented | Web session, upload/canvas and device behavior remain pending. |
+| Support tickets | Implemented | API contract and device flow remain pending. |
+| Coupon verification | Implemented | API response fields and device flow remain pending. |
+| App settings | Implemented (source-level) | Code reviewed; analyzer, tests, Android build and device behavior remain pending. |
+| Games, About/FAQ, update management and other native integrations | Not yet migrated | See the feature checklist below. |
+
 
 | Android screen / entry → destinations | Behavior, data, validation and states to preserve | Flutter target |
 |---|---|---|
@@ -88,4 +100,4 @@ Use feature-first folders with `flutter_riverpod` for state, `go_router` for aut
 
 ## 7. Baseline verification
 
-The only Android tests are generated example tests; no feature/business-logic tests exist. This environment has no Flutter, Dart, Java, or Android SDK on `PATH`, so Flutter analysis/tests/builds (and Android Gradle builds) cannot currently be run. Install/configure Flutter + Android toolchains before claiming a verified migration.
+The Android source still has only generated example tests; Flutter now has unit tests for auth validation, API failures, bridge parsing, Support, Coupon and settings models. This environment has no Flutter, Dart, Java, or Android SDK on `PATH`, so Flutter analysis/tests/builds (and Android Gradle builds) cannot currently be run. Install/configure Flutter + Android toolchains before claiming a verified migration.

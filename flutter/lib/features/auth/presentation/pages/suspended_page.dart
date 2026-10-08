@@ -22,7 +22,7 @@ class SuspendedPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: NextelPalette.background,
+      backgroundColor: context.nextelColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -38,16 +38,16 @@ class SuspendedPage extends StatelessWidget {
                   semanticLabel: 'Nextel Connect',
                 ),
                 const SizedBox(height: 36),
-                const Icon(
+                Icon(
                   Icons.lock_person_outlined,
                   size: 56,
-                  color: NextelPalette.primary,
+                  color: context.nextelColors.primary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Account suspended',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: NextelPalette.primary,
+                        color: context.nextelColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -58,7 +58,7 @@ class SuspendedPage extends StatelessWidget {
                       : details.message,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: NextelPalette.muted,
+                        color: context.nextelColors.muted,
                         height: 1.45,
                       ),
                 ),

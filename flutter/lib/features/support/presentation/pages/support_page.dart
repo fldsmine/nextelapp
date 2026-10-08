@@ -356,9 +356,9 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         if (!didPop && _showingConversation) unawaited(_showTicketList());
       },
       child: Scaffold(
-        backgroundColor: NextelPalette.background,
+        backgroundColor: context.nextelColors.background,
         appBar: AppBar(
-          backgroundColor: NextelPalette.primary,
+          backgroundColor: context.nextelColors.primary,
           foregroundColor: Colors.white,
           title: Text(_showingConversation ? 'Support ticket' : 'Help & Support'),
           leading: IconButton(
@@ -402,7 +402,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                   child: Text(
                     'Your tickets',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: NextelPalette.text,
+                          color: context.nextelColors.text,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
@@ -434,15 +434,15 @@ class _SupportPageState extends ConsumerState<SupportPage> {
       );
 
   Widget _buildAccountCard() => Card(
-        color: NextelPalette.surface,
+        color: context.nextelColors.surface,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: NextelPalette.accent,
-                foregroundColor: NextelPalette.primary,
+                backgroundColor: context.nextelColors.accent,
+                foregroundColor: context.nextelColors.primary,
                 child: Text(
                   _account.initials,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -456,7 +456,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                     Text(
                       'REGISTERED ACCOUNT',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: NextelPalette.muted,
+                            color: context.nextelColors.muted,
                             fontWeight: FontWeight.bold,
                             letterSpacing: .5,
                           ),
@@ -474,7 +474,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: NextelPalette.muted,
+                              color: context.nextelColors.muted,
                             ),
                       ),
                   ],
@@ -486,7 +486,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
       );
 
   Widget _buildTicketForm() => Card(
-        color: NextelPalette.surface,
+        color: context.nextelColors.surface,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -569,7 +569,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
       );
 
   Widget _buildTicketCard(SupportTicket ticket) => Card(
-        color: NextelPalette.surface,
+        color: context.nextelColors.surface,
         margin: const EdgeInsets.only(bottom: 10),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -589,8 +589,8 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                         ticket.subject,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: NextelPalette.text,
+                        style: TextStyle(
+                          color: context.nextelColors.text,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -604,7 +604,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                 Text(
                   '${ticket.reference} · ${_categoryLabel(ticket.category)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: NextelPalette.muted,
+                        color: context.nextelColors.muted,
                       ),
                 ),
                 if ((ticket.latestMessage ?? '').isNotEmpty) ...[
@@ -644,7 +644,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
           ),
         ),
         Card(
-          color: NextelPalette.surface,
+          color: context.nextelColors.surface,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -653,7 +653,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                 Text(
                   conversation.ticket.reference,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: NextelPalette.muted,
+                        color: context.nextelColors.muted,
                       ),
                 ),
                 const SizedBox(height: 4),
@@ -672,7 +672,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         if (_loadingConversation) const LinearProgressIndicator(),
         for (final message in conversation.messages) _buildMessageBubble(message),
         Card(
-          color: NextelPalette.surface,
+          color: context.nextelColors.surface,
           margin: const EdgeInsets.only(top: 8),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -731,9 +731,11 @@ class _SupportPageState extends ConsumerState<SupportPage> {
         margin: const EdgeInsets.only(top: 5, bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: fromSupport ? NextelPalette.surface : const Color(0xFFEAF2D2),
+          color: fromSupport
+              ? context.nextelColors.surface
+              : context.nextelColors.primaryLight.withValues(alpha: .16),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: NextelPalette.border.withValues(alpha: .55)),
+          border: Border.all(color: context.nextelColors.border.withValues(alpha: .55)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,8 +746,8 @@ class _SupportPageState extends ConsumerState<SupportPage> {
                       ? 'Nextel Support'
                       : message.senderName)
                   : 'You',
-              style: const TextStyle(
-                color: NextelPalette.primary,
+              style: TextStyle(
+                color: context.nextelColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -757,7 +759,7 @@ class _SupportPageState extends ConsumerState<SupportPage> {
               Text(
                 _formattedDate(message.createdAt),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: NextelPalette.muted,
+                      color: context.nextelColors.muted,
                     ),
               ),
             ],
@@ -769,13 +771,13 @@ class _SupportPageState extends ConsumerState<SupportPage> {
 
   Widget _buildInlineError(String message, {required VoidCallback? onRetry}) =>
       Card(
-        color: NextelPalette.surface,
+        color: context.nextelColors.surface,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(message, style: const TextStyle(color: NextelPalette.danger)),
+              Text(message, style: TextStyle(color: context.nextelColors.danger)),
               if (onRetry != null) ...[
                 const SizedBox(height: 8),
                 TextButton.icon(
@@ -795,12 +797,12 @@ class _SupportEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        color: NextelPalette.surface,
-        child: const Padding(
-          padding: EdgeInsets.all(18),
+        color: context.nextelColors.surface,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: Text(
             'Your support conversations will appear here.',
-            style: TextStyle(color: NextelPalette.muted),
+            style: TextStyle(color: context.nextelColors.muted),
           ),
         ),
       );
@@ -815,13 +817,13 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
-          color: const Color(0xFFE7EDCD),
+          color: context.nextelColors.primaryLight.withValues(alpha: .18),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Text(
           label.isEmpty ? 'Open' : label,
-          style: const TextStyle(
-            color: NextelPalette.primary,
+          style: TextStyle(
+            color: context.nextelColors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
@@ -837,6 +839,6 @@ class _ErrorText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         message,
-        style: const TextStyle(color: NextelPalette.danger, fontSize: 12),
+        style: TextStyle(color: context.nextelColors.danger, fontSize: 12),
       );
 }

@@ -39,8 +39,8 @@ class AuthPageFrame extends StatelessWidget {
             child: Container(
               width: 13,
               height: 13,
-              decoration: const BoxDecoration(
-                color: NextelPalette.accent,
+              decoration: BoxDecoration(
+                color: context.nextelColors.accent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -72,7 +72,7 @@ class AuthPageFrame extends StatelessWidget {
                             icon: const Icon(Icons.arrow_back, size: 18),
                             label: const Text('Back'),
                             style: TextButton.styleFrom(
-                              foregroundColor: NextelPalette.primary,
+                              foregroundColor: context.nextelColors.primary,
                             ),
                           ),
                         ),
@@ -82,14 +82,14 @@ class AuthPageFrame extends StatelessWidget {
                         title,
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: NextelPalette.primary,
+                              color: context.nextelColors.primary,
                             ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: NextelPalette.muted,
+                              color: context.nextelColors.muted,
                               height: 1.4,
                             ),
                       ),
