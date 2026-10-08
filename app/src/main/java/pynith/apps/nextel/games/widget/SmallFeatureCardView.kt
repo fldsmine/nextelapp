@@ -37,10 +37,7 @@ class SmallFeatureCardView(
         titleView.text = title
         badgeView.text = badge
         badgeView.setBackgroundColor(
-            if (badge === "NEW")
-                -65536
-            else
-                -16776961)
+            if (badge == "NEW") android.graphics.Color.RED else android.graphics.Color.BLUE)
 
         if(badge.isEmpty()){
             badgeView.visibility = View.GONE

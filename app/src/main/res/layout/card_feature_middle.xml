@@ -39,6 +39,18 @@
                     android:layout_height="match_parent"
                     android:background="@drawable/card_bg_overlay" />
 
+                <TextView
+                    android:id="@+id/badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="6dp"
+                    android:background="@android:color/holo_red_dark"
+                    android:padding="4dp"
+                    android:text="NEW"
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp" />
+
             </FrameLayout>
 
         </androidx.cardview.widget.CardView>

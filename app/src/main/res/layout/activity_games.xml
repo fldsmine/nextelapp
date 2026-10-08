@@ -17,7 +17,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         app:navigationIcon="@drawable/left_arrow"
-        app:title="@string/games"
+        app:title="System games"
         app:titleTextColor="@color/nextel_white" />
 
     <ScrollView
@@ -28,24 +28,17 @@
         android:fillViewport="true"
         android:scrollbars="none"
         android:overScrollMode="never"
-        android:background="@drawable/bg_game">
+        android:background="@drawable/bg_games_hub">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingTop="22dp"
-            android:paddingEnd="16dp"
+            android:paddingStart="12dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="12dp"
             android:paddingBottom="26dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Pick a game and start playing."
-                android:textColor="?attr/txtLight"
-                android:textSize="14sp" />
 
             <!-- Featured game -->
 
@@ -53,14 +46,14 @@
                 android:id="@+id/featuredContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp" />
+                android:layout_marginTop="12dp" />
 
             <!-- Quick games row -->
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_height="232dp"
+                android:layout_marginTop="16dp"
                 android:scrollbars="none"
                 android:clipToPadding="false"
                 android:overScrollMode="never">
@@ -77,8 +70,8 @@
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_height="165dp"
+                android:layout_marginTop="16dp"
                 android:scrollbars="none"
                 android:clipToPadding="false"
                 android:overScrollMode="never">
@@ -97,7 +90,7 @@
                 android:id="@+id/featuredBottomContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp" />
+                android:layout_marginTop="25dp" />
 
         </LinearLayout>
 

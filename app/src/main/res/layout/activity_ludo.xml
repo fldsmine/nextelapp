@@ -10,56 +10,105 @@
         android:id="@+id/ludoToolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
+        android:background="#0B0F1A"
         app:navigationIcon="@drawable/left_arrow"
         app:title="Ludo game"
         app:titleTextColor="@color/nextel_white" />
 
-    <FrameLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:background="@drawable/bg_ludo_body"
+        android:fillViewport="false"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:layout_gravity="center_vertical">
+            android:paddingTop="40dp"
+            android:paddingBottom="24dp">
 
             <pynith.apps.nextel.games.ludo.LudoBoardView
                 android:id="@+id/boardView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp" />
+                android:layout_margin="10dp"
+                android:contentDescription="Ludo board" />
 
-            <TextView
-                android:id="@+id/statusText"
+            <pynith.apps.nextel.games.ludo.LudoDiceView
+                android:id="@+id/diceView"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:contentDescription="Roll the dice" />
+
+            <LinearLayout
+                android:id="@+id/endGamePanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="12dp"
+                android:background="#CC000000"
                 android:gravity="center"
-                android:text="Green's turn — roll the dice."
-                android:textColor="?attr/txtColor"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:visibility="gone">
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="12dp">
+                <ImageView
+                    android:id="@+id/celebrationImage"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:contentDescription="Thank you for playing"
+                    android:scaleType="fitCenter" />
 
-                <pynith.apps.nextel.games.widget.DiceView
-                    android:id="@+id/diceView"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:layout_gravity="center_horizontal" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="Thank you for playing 😙"
+                    android:textColor="@color/nextel_white"
+                    android:textSize="20sp" />
 
-            </FrameLayout>
+                <TextView
+                    android:id="@+id/winnersText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:textColor="@color/nextel_white"
+                    android:textSize="28sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/nextel_white" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="This game made with Flutter ❤️ by Mochamad Nizwar Syafuan"
+                    android:textColor="@color/nextel_white"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="Refresh your browser to play again"
+                    android:textColor="@color/nextel_white"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
-    </FrameLayout>
+    </ScrollView>
 
 </LinearLayout>

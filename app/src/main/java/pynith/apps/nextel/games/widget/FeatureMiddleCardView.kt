@@ -1,7 +1,9 @@
 package pynith.apps.nextel.games.widget
 
 import android.content.Context
+import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -14,6 +16,7 @@ class FeatureMiddleCardView(
     context: Context,
     title: String,
     imageRes: Int,
+    badge: String,
     onClick: () -> Unit
 ) : LinearLayout(context) {
 
@@ -24,12 +27,16 @@ class FeatureMiddleCardView(
         val rootView = view.findViewById<LinearLayout>(R.id.rootView)
         val image = view.findViewById<ImageView>(R.id.image)
         val titleView = view.findViewById<TextView>(R.id.titleView)
+        val badgeView = view.findViewById<TextView>(R.id.badge)
 
         val width = resources.displayMetrics.widthPixels / 2 - 10
         rootView.layoutParams = LayoutParams(width, LayoutParams.WRAP_CONTENT)
 
         image.setImageResource(imageRes)
         titleView.text = title
+        badgeView.text = badge
+        badgeView.visibility = if (badge.isEmpty()) View.GONE else View.VISIBLE
+        badgeView.setBackgroundColor(if (badge == "NEW") Color.RED else Color.BLUE)
 
         setupTouchAnimation()
         setOnClickListener { onClick() }

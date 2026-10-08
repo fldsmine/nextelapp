@@ -1,15 +1,17 @@
 package pynith.apps.nextel.games.hangman
 
+import android.content.Context
 import kotlin.random.Random
 
 /**
- * Word source for Hangman (the Flutter module read a bundled
- * hangman_words.txt asset that is not part of the repository, so the list is
- * embedded here). Words are handed out without repetition until every word
- * has been used.
+ * Random word source for the original Hangman word list. The source Flutter
+ * screen loaded `assets/res/hangman_words.txt` and did not repeat a word in a
+ * run; the Android port reads the same bundled list from app assets.
  */
-class HangmanWords {
-
+class HangmanWords(
+    private val words: List<String>,
+    private val random: Random = Random.Default
+) {
     private val used = mutableSetOf<Int>()
 
     var wordCounter: Int = 0
@@ -20,230 +22,27 @@ class HangmanWords {
         used.clear()
     }
 
-    /** Next random unused word, or null once every word has been used. */
+    /** Next random unused word, or null once the full bundled list is used. */
     fun getWord(): String? {
-        if (used.size == WORDS.size) return null
         wordCounter += 1
+        if (wordCounter - 1 == words.size || words.isEmpty()) return null
+
         while (true) {
-            val index = Random.nextInt(WORDS.size)
-            if (used.add(index)) return WORDS[index]
+            val index = random.nextInt(words.size)
+            if (used.add(index)) return words[index]
         }
     }
 
     companion object {
-        val WORDS = listOf(
-            "ability", "absorb", "account", "achieve", "across", "action", "active",
-            "actually", "address", "advance", "adventure", "against", "airport", "alarm",
-            "algorithm", "alphabet", "although", "amazing", "ambition", "ancient", "animal",
-            "another", "answer", "anxiety", "applied", "approve", "arctic", "argument",
-            "arrange", "attempt", "attraction", "available", "average", "balance", "battery",
-            "beautiful", "became", "because", "bedroom", "behavior", "believe", "benefit",
-            "beside", "between", "bicycle", "biology", "birthday", "blossom", "blanket",
-            "bottle", "brave", "breakfast", "breathe", "bridge", "bright", "brilliant",
-            "brother", "brought", "bubble", "builder", "butterfly", "cabinet", "camera",
-            "camping", "candle", "capital", "captain", "caravan", "careful", "carpet",
-            "carrot", "castle", "caught", "celebrate", "central", "century", "certain",
-            "champion", "chapter", "charity", "chase", "cheerful", "chemical", "chicken",
-            "children", "chimney", "chocolate", "cinema", "circle", "citizen", "classic",
-            "clever", "cliff", "climate", "climbing", "clothes", "coffee", "collect",
-            "college", "combine", "comfort", "command", "company", "compare", "compass",
-            "complete", "computer", "concept", "concern", "concert", "confirm", "connect",
-            "consider", "console", "contact", "contain", "context", "control", "conversation",
-            "cooking", "corner", "correct", "costume", "country", "courage", "cousin",
-            "crayon", "create", "creature", "cricket", "crossing", "crowded", "crown",
-            "curious", "current", "curtain", "custom", "cyprus", "dancer", "danger",
-            "daring", "daughter", "dawn", "decent", "decide", "declare", "decorate",
-            "degree", "delicate", "deliver", "density", "departure", "depend", "describe",
-            "desert", "design", "desire", "detail", "detective", "develop", "diagram",
-            "diamond", "diary", "dictionary", "dinner", "dinosaur", "direct", "disappear",
-            "discover", "distance", "doctor", "dolphin", "domestic", "double", "download",
-            "dragon", "dramatic", "drawer", "drawing", "dream", "dress", "drift",
-            "driving", "durable", "during", "dynamic", "eager", "earnings", "eastern",
-            "eclipse", "economy", "edible", "editor", "educate", "effort", "eighteen",
-            "either", "elastic", "elbow", "elderly", "electric", "elegant", "elephant",
-            "eleven", "emerald", "emotion", "emphasize", "empire", "employ", "empty",
-            "enable", "enamel", "encounter", "energy", "engine", "enormous", "enough",
-            "entertain", "entrance", "envelope", "environment", "episode", "equator",
-            "equipment", "escape", "especially", "estate", "eternal", "evening", "event",
-            "examine", "excellent", "except", "exchange", "excite", "exercise", "exhaust",
-            "exotic", "expand", "expect", "expensive", "experience", "experiment", "expert",
-            "explain", "explore", "express", "extend", "external", "fabric", "factory",
-            "falcon", "family", "famous", "fantastic", "farmer", "fashion", "father",
-            "favorite", "feature", "february", "festival", "fever", "fiction", "fiddle",
-            "figure", "filter", "final", "finance", "finger", "finish", "firm",
-            "fishing", "fitness", "flame", "flavor", "flight", "floating", "flower",
-            "fluent", "focus", "follow", "forest", "forget", "forming", "fortune",
-            "forward", "fossil", "foster", "founder", "fourteen", "foxes", "fragile",
-            "frame", "freedom", "freeze", "frequent", "fresh", "fridge", "friendly",
-            "frighten", "frog", "frontier", "frozen", "furniture", "future", "gadget",
-            "gallery", "garage", "garden", "garlic", "gather", "general", "gentle",
-            "genuine", "gesture", "ginger", "giraffe", "glacier", "glance", "glass",
-            "global", "glory", "goggles", "golden", "gospel", "governor", "graceful",
-            "grandmother", "granite", "grape", "grasp", "grateful", "gravity", "green",
-            "greeting", "griffin", "grocery", "growing", "guess", "guide", "guitar",
-            "gutter", "gymnast", "haircut", "hammer", "hamster", "handy", "hanger",
-            "happening", "harbour", "harmony", "harvest", "hazard", "heading", "health",
-            "hearing", "hearted", "heaven", "hedgehog", "height", "helmet", "helpful",
-            "herald", "heritage", "heroic", "hidden", "highway", "hiking", "hobby",
-            "hockey", "holiday", "honest", "honey", "honour", "hopeful", "horizontal",
-            "hospital", "hostel", "hotel", "hourglass", "household", "hover", "human",
-            "humble", "hunger", "hunter", "hurricane", "hybrid", "hydrogen", "iceberg",
-            "identify", "igloo", "illness", "illustrate", "imagine", "imitate", "immense",
-            "impact", "import", "impress", "improve", "impulse", "incense", "include",
-            "increase", "indeed", "index", "indoor", "industry", "infant", "inform",
-            "inject", "injure", "inland", "inner", "input", "inquiry", "insect",
-            "inside", "inspect", "inspire", "install", "instead", "instruct", "instrument",
-            "insult", "insurance", "intend", "interest", "internal", "interval", "interview",
-            "introduce", "invent", "invite", "involve", "island", "jacket", "jaguar",
-            "jazz", "jellyfish", "jersey", "jewelry", "jockey", "jolly", "journal",
-            "journey", "joyful", "judge", "juggle", "juice", "jumbo", "junction",
-            "jungle", "junior", "jupiter", "justice", "kangaroo", "karate", "kayak",
-            "keenly", "kettle", "keyboard", "kick", "kingdom", "kitchen", "kite",
-            "kitten", "knee", "knight", "knitting", "knowledge", "koala", "laboratory",
-            "ladder", "lagoon", "lantern", "laptop", "large", "laser", "laundry",
-            "lavender", "lawyer", "layer", "leader", "leaf", "learning", "leather",
-            "lecture", "legend", "leisure", "lemon", "length", "lentil", "leopard",
-            "lesson", "letter", "lettuce", "library", "license", "liftoff", "lightning",
-            "lilac", "limit", "linden", "linear", "lion", "liquid", "listen",
-            "little", "lively", "lizard", "lobster", "local", "locate", "locker",
-            "lovely", "lover", "lower", "loyal", "lucky", "luggage", "lumber",
-            "lunar", "lunch", "luxury", "machine", "magazine", "magic", "magnet",
-            "mailbox", "major", "mammal", "manage", "mandate", "mango", "manner",
-            "mantle", "manual", "marathon", "marble", "margin", "marine", "market",
-            "marriage", "marvel", "mascot", "massive", "master", "match", "material",
-            "mathematics", "matter", "mature", "meadow", "measure", "medal", "medical",
-            "meeting", "melody", "melon", "member", "memory", "mental", "mention",
-            "menu", "merchant", "mercy", "mermaid", "message", "metal", "meteor",
-            "method", "middle", "midnight", "mighty", "migrate", "mild", "military",
-            "milk", "million", "mineral", "mingle", "miniature", "minister", "minor",
-            "minute", "miracle", "mirror", "misty", "mixture", "mobile", "model",
-            "moderate", "modern", "modest", "modify", "moisture", "moment", "monarch",
-            "monitor", "monkey", "monsoon", "month", "monument", "mood", "moonlight",
-            "moral", "morning", "mosquito", "mother", "motion", "motor", "mountain",
-            "mouse", "movie", "muscle", "museum", "music", "mustard", "mystery",
-            "napkin", "narrow", "nation", "native", "natural", "nature", "nebula",
-            "nectar", "needle", "negative", "neighbor", "nephew", "nervous", "network",
-            "neutral", "never", "newspaper", "niece", "night", "nimble", "nitrogen",
-            "noble", "noise", "nominate", "noodle", "normal", "northern", "notable",
-            "novel", "nuclear", "nugget", "number", "nurse", "nutshell", "oasis",
-            "obedient", "object", "observe", "obtain", "obvious", "occasion", "ocean",
-            "octopus", "office", "offline", "olive", "omelette", "online", "opening",
-            "operate", "opinion", "opponent", "opportunity", "opposite", "optical", "orange",
-            "orbit", "orchard", "orchestra", "organic", "orient", "origin", "ornament",
-            "orphan", "ostrich", "other", "otter", "ounce", "outdoor", "outer",
-            "outline", "output", "outside", "oval", "oven", "overcome", "oxygen",
-            "oyster", "pacific", "package", "painted", "palace", "palm", "pancake",
-            "panda", "panel", "panic", "panther", "papaya", "paper", "parade",
-            "parallel", "parcel", "pardon", "parent", "parish", "parking", "parrot",
-            "partner", "party", "passion", "pasta", "pastel", "pastry", "patch",
-            "patient", "patrol", "pattern", "pause", "pavement", "payment", "peaceful",
-            "peach", "peanut", "pebble", "peculiar", "pedal", "pelican", "pencil",
-            "penguin", "people", "pepper", "perfume", "period", "permit", "person",
-            "petrol", "phantom", "pharmacy", "phone", "photo", "phrase", "physical",
-            "piano", "picnic", "picture", "pigeon", "pilgrim", "pillow", "pilot",
-            "pinch", "pioneer", "pipeline", "pirate", "pistol", "piston", "pitcher",
-            "pivot", "pixel", "pizza", "placid", "planet", "plank", "plant",
-            "plasma", "plateau", "player", "please", "pledge", "plenty", "plover",
-            "pocket", "podium", "poetry", "point", "polar", "police", "polite",
-            "pollen", "pomelo", "poncho", "pontoon", "poplar", "poppy", "popular",
-            "porch", "portal", "portrait", "position", "positive", "possess", "possible",
-            "postage", "posture", "potato", "potential", "pouch", "pound", "power",
-            "practice", "praise", "prayer", "precious", "predict", "prefer", "premium",
-            "present", "preside", "pretty", "prevent", "preview", "pride", "primary",
-            "prime", "prince", "print", "prism", "prison", "private", "prize",
-            "problem", "process", "produce", "professor", "profile", "profit", "program",
-            "project", "promise", "prompt", "proper", "protect", "proud", "provide",
-            "public", "pudding", "puffin", "pulley", "pumpkin", "punch", "puppet",
-            "purple", "purpose", "puzzle", "pyramid", "quality", "quantity", "quarrel",
-            "quartz", "queen", "quest", "quick", "quiet", "quilt", "quinoa",
-            "quirky", "quiver", "quiz", "quota", "quotation", "rabbit", "raccoon",
-            "racing", "radar", "radiant", "radio", "radish", "rafter", "rainbow",
-            "raisin", "rally", "ramp", "random", "ranger", "rapid", "rascal",
-            "rattle", "raven", "ravine", "reactor", "reading", "reality", "reaper",
-            "reason", "rebel", "receipt", "recipe", "record", "recover", "recycle",
-            "reduce", "reflect", "reform", "refuge", "regal", "region", "regular",
-            "reign", "reject", "rejoice", "relate", "relax", "release", "relief",
-            "remain", "remark", "remedy", "remind", "remote", "render", "renew",
-            "rental", "repair", "repeat", "replace", "reply", "report", "request",
-            "require", "rescue", "research", "reserve", "reside", "resist", "resolve",
-            "respect", "restore", "result", "retail", "retain", "retreat", "return",
-            "reveal", "review", "revise", "reward", "rhyme", "rhythm", "ribbon",
-            "riddle", "rider", "ridge", "rifle", "right", "rigid", "rinse",
-            "ripple", "rising", "ritual", "rival", "river", "roast", "robin",
-            "robot", "rocket", "rodeo", "roll", "roman", "roof", "room",
-            "rooster", "rotate", "rough", "round", "route", "routine", "royal",
-            "rubber", "rudder", "rugby", "ruin", "rumble", "runner", "runway",
-            "rural", "rustic", "sacred", "saddle", "safari", "safety", "sailor",
-            "salad", "salmon", "salute", "sample", "sandal", "sapling", "sapphire",
-            "sardine", "satchel", "sauce", "sausage", "saving", "scale", "scandal",
-            "scarf", "scenic", "schedule", "scholar", "science", "scissors", "scooter",
-            "score", "screen", "script", "sculpture", "seagull", "season", "second",
-            "secret", "section", "sector", "secure", "sediment", "segment", "seldom",
-            "select", "senate", "senior", "sense", "sentence", "series", "servant",
-            "session", "settle", "seven", "shadow", "shallow", "shampoo", "shape",
-            "share", "shark", "sharp", "shelf", "shelter", "sheriff", "shield",
-            "shimmer", "shiny", "shore", "shortage", "shoulder", "shovel", "shower",
-            "shrimp", "shrine", "shuffle", "shutter", "sibling", "sierra", "signal",
-            "silent", "silicon", "silk", "silver", "similar", "simple", "sincere",
-            "single", "siren", "sister", "sixteen", "sketch", "skiing", "skill",
-            "skipper", "skirt", "skull", "skyline", "slalom", "sleeve", "slender",
-            "slice", "slide", "slogan", "sloppy", "slumber", "smart", "smile",
-            "smoke", "smooth", "snack", "snake", "sneaker", "snowfall", "social",
-            "socket", "sodium", "sofa", "solar", "soldier", "solid", "solution",
-            "solve", "somebody", "sonata", "sonnet", "soothe", "sorbet", "sorrow",
-            "sound", "source", "southern", "space", "spade", "spaghetti", "sparkle",
-            "sparrow", "spatial", "speaker", "special", "species", "sphere", "spice",
-            "spider", "spinach", "spiral", "spirit", "splash", "spoken", "sponge",
-            "spoon", "sport", "spotlight", "spread", "spring", "sprout", "spruce",
-            "square", "squid", "stable", "stadium", "staff", "stage", "stairs",
-            "stamps", "stand", "staple", "starch", "starfish", "starry", "statue",
-            "status", "steady", "steam", "steel", "stellar", "stencil", "stereo",
-            "sterling", "stitch", "stocking", "stomach", "storage", "storm", "story",
-            "stove", "straight", "strange", "stream", "street", "stretch", "strike",
-            "string", "stripe", "strong", "studio", "study", "subject", "submit",
-            "substance", "subtle", "subway", "success", "sudden", "suffer", "sugar",
-            "suggest", "suite", "sulfur", "summer", "summit", "sunset", "sunshine",
-            "superb", "supper", "supply", "support", "supreme", "surface", "surgeon",
-            "surprise", "survive", "suspend", "sustain", "swallow", "swamp", "sweater",
-            "swift", "swimmer", "switch", "sword", "symbol", "syntax", "system",
-            "table", "tablet", "tackle", "tailor", "talent", "tandem", "tangle",
-            "tanker", "tapestry", "target", "tavern", "teacher", "teapot", "technique",
-            "teeth", "telescope", "television", "temple", "tenant", "tender", "tennis",
-            "tension", "terminal", "terrain", "texture", "thank", "theater", "theme",
-            "theory", "thermal", "thicket", "thirteen", "thorn", "thread", "thrill",
-            "throat", "throne", "thumb", "thunder", "ticket", "tidal", "tiger",
-            "timber", "timely", "tissue", "titan", "toast", "tobacco", "toffee",
-            "toilet", "tomato", "tomorrow", "tongue", "tool", "toothpaste", "topaz",
-            "topic", "torch", "tornado", "tortoise", "total", "toucan", "touch",
-            "tourist", "toward", "tower", "trace", "tractor", "tradition", "traffic",
-            "trail", "trainer", "transfer", "travel", "tray", "treasure", "treat",
-            "tremble", "trend", "trial", "triangle", "tribe", "trick", "trilogy",
-            "trinket", "triple", "triumph", "trolley", "trophy", "trout", "truck",
-            "truffle", "trumpet", "trunk", "trust", "truth", "tulip", "tumble",
-            "tuna", "tunnel", "turban", "turkey", "turnip", "turtle", "tuxedo",
-            "twelve", "twig", "twilight", "twist", "typical", "ultimate", "umbrella",
-            "unable", "uncle", "under", "unfold", "uniform", "unite", "universe",
-            "unlock", "until", "unusual", "update", "upgrade", "uphill", "upload",
-            "upper", "upright", "upset", "urban", "urgent", "usable", "useful",
-            "usual", "utensil", "vacation", "vaccine", "vacuum", "valid", "valley",
-            "valuable", "value", "vanilla", "vantage", "variable", "vault", "vector",
-            "vegetable", "vehicle", "velvet", "vendor", "venture", "verbal", "verdict",
-            "verify", "vermont", "version", "vessel", "veteran", "viable", "victory",
-            "video", "viewer", "vigor", "village", "vinegar", "vintage", "violin",
-            "virtue", "vision", "visit", "visual", "vital", "vitamin", "vivid",
-            "vocal", "volcano", "volley", "volume", "volunteer", "voyage", "wafer",
-            "waggle", "wallet", "walnut", "walrus", "wander", "wardrobe", "warehouse",
-            "warmth", "warning", "warrior", "washer", "waste", "watch", "waterfall",
-            "wattle", "waver", "weather", "weave", "website", "wedding", "weekend",
-            "welcome", "welfare", "western", "whale", "wheat", "whisker", "whisper",
-            "whistle", "white", "wholesome", "wicked", "widget", "wildlife", "willow",
-            "window", "winner", "winter", "wisdom", "wisely", "wishful", "witness",
-            "wizard", "wobble", "wolf", "wonder", "wooden", "wool", "word",
-            "worker", "world", "worthy", "wound", "woven", "wrangle", "wreath",
-            "wrench", "wrestle", "wrinkle", "wrist", "writer", "yacht", "yarrow",
-            "yellow", "yesterday", "yodel", "yoga", "yogurt", "young", "zebra",
-            "zenith", "zeppelin", "zesty", "zigzag", "zipper", "zodiac", "zone",
-            "zookeeper", "zucchini"
-        )
+        private const val WORD_LIST_ASSET = "res/hangman_words.txt"
+
+        fun from(context: Context): HangmanWords {
+            val contents = context.assets.open(WORD_LIST_ASSET).bufferedReader().use { it.readText() }
+            return HangmanWords(parseWordList(contents))
+        }
+
+        /** Mirrors Dart's `split('\n')`, while accepting CRLF asset checkouts. */
+        fun parseWordList(contents: String): List<String> =
+            contents.split('\n').map { it.removeSuffix("\r") }
     }
 }
