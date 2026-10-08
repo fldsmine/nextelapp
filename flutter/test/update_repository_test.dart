@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nextel_connect/app/config/app_config.dart';
+import 'package:nextel_connect/core/security/native_platform_bridge.dart';
 import 'package:nextel_connect/features/update/data/update_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,6 +26,16 @@ class _FakeAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+class _FakeNativeBridge extends NativePlatformBridge {
+  _FakeNativeBridge(this.backgroundState);
+
+  final Map<String, Object?>? backgroundState;
+
+  @override
+  Future<Map<String, Object?>?> readBackgroundUpdateState() async =>
+      backgroundState;
 }
 
 const _config = AppConfig(
@@ -58,6 +69,20 @@ Map<String, Object?> _upgradeResponse({
           'published_at': null,
         },
       },
+    };
+
+Map<String, Object?> _cachedUpdate({bool updateRequired = false}) => {
+      'current_build': 4,
+      'update_required': updateRequired,
+      'version_name': '3.6.0',
+      'build_number': 5,
+      'minimum_supported_build': 0,
+      'force_update': false,
+      'title': 'Nextel update',
+      'release_notes': 'Stability improvements',
+      'server_download_url': 'https://updates.example/nextel.apk',
+      'play_store_url': null,
+      'published_at': null,
     };
 
 Future<ResponseBody> _jsonResponse(Object? data) async =>
@@ -129,6 +154,35 @@ void main() {
 
       expect(await repository.checkForStartup(), isNull);
       expect(adapter.requests, hasLength(1));
+    });
+
+    test('imports a WorkManager result for the foreground prompt', () async {
+      final preferences = await SharedPreferences.getInstance();
+      final fixedNow = DateTime.utc(2026, 10, 8, 12);
+      final adapter = _FakeAdapter((_) => throw StateError('Unexpected request'));
+      final dio = Dio(BaseOptions(baseUrl: 'https://updates.example/api/v1/'))
+        ..httpClientAdapter = adapter;
+      final repository = UpdateRepository(
+        config: _config,
+        preferences: preferences,
+        nativeBridge: _FakeNativeBridge({
+          'checkedAt': fixedNow.millisecondsSinceEpoch,
+          'updateInfoJson': jsonEncode(_cachedUpdate()),
+        }),
+        dio: dio,
+        clock: () => fixedNow,
+      );
+
+      final update = await repository.checkForStartup();
+
+      expect(update?.versionName, '3.6.0');
+      expect(adapter.requests, isEmpty);
+      expect(
+        preferences.getInt('flutter_update_last_successful_check'),
+        fixedNow.millisecondsSinceEpoch,
+      );
+      await repository.markPrompted(update!);
+      expect(await repository.pendingUpdatePrompt(), isNull);
     });
 
     test('re-shows a cached mandatory update without waiting a day', () async {

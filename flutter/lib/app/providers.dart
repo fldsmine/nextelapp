@@ -44,5 +44,6 @@ final updateRepositoryProvider = Provider<UpdateRepository>((ref) {
   return UpdateRepository(
     config: ref.watch(appConfigProvider),
     preferences: ref.watch(sharedPreferencesProvider),
+    nativeBridge: ref.watch(nativePlatformBridgeProvider),
   );
 });

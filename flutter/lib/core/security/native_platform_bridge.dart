@@ -156,6 +156,18 @@ class NativePlatformBridge {
     }
   }
 
+  Future<Map<String, Object?>?> readBackgroundUpdateState() async {
+    try {
+      return await _channel.invokeMapMethod<String, Object?>(
+        'readBackgroundUpdateState',
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   Future<bool> canInstallApks() async {
     try {
       return await _channel.invokeMethod<bool>('canInstallApks') ?? false;

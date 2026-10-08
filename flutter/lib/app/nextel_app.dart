@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/settings/presentation/providers/app_settings_provider.dart';
+import '../features/update/presentation/update_prompt_observer.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -27,11 +28,13 @@ class NextelApp extends ConsumerWidget {
         final media = MediaQuery.of(context);
         // Keep platform accessibility scaling while applying the app preference.
         final platformScale = media.textScaler.scale(16) / 16;
-        return MediaQuery(
-          data: media.copyWith(
-            textScaler: TextScaler.linear(settings.fontScale * platformScale),
+        return UpdatePromptObserver(
+          child: MediaQuery(
+            data: media.copyWith(
+              textScaler: TextScaler.linear(settings.fontScale * platformScale),
+            ),
+            child: child ?? const SizedBox.shrink(),
           ),
-          child: child ?? const SizedBox.shrink(),
         );
       },
       routerConfig: ref.watch(appRouterProvider),

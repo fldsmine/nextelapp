@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/config/app_config.dart';
+import '../../../core/security/native_platform_bridge.dart';
 import '../domain/app_update_info.dart';
 
 /// Queries the legacy-compatible upgrade endpoint and caches the latest result.
@@ -11,10 +12,12 @@ class UpdateRepository {
   UpdateRepository({
     required AppConfig config,
     required SharedPreferences preferences,
+    NativePlatformBridge? nativeBridge,
     Dio? dio,
     DateTime Function()? clock,
   })  : _config = config,
         _preferences = preferences,
+        _nativeBridge = nativeBridge,
         _clock = clock ?? DateTime.now,
         _dio = dio ?? _createDio(config);
 
@@ -26,6 +29,7 @@ class UpdateRepository {
 
   final AppConfig _config;
   final SharedPreferences _preferences;
+  final NativePlatformBridge? _nativeBridge;
   final DateTime Function() _clock;
   final Dio _dio;
   Future<AppUpdateInfo?>? _inFlightCheck;
@@ -35,6 +39,7 @@ class UpdateRepository {
   /// Optional updates are returned only on a fresh daily check, avoiding a
   /// prompt on every app launch.
   Future<AppUpdateInfo?> checkForStartup() async {
+    await _syncBackgroundUpdate();
     final cached = await readCachedUpdate();
     if (cached?.isMandatory == true) return cached;
 
@@ -47,6 +52,16 @@ class UpdateRepository {
     }
 
     return checkNow();
+  }
+
+  /// Reads a background WorkManager result without issuing another network call.
+  Future<AppUpdateInfo?> pendingUpdatePrompt() async {
+    await _syncBackgroundUpdate();
+    final cached = await readCachedUpdate();
+    if (cached == null || cached.isMandatory) return cached;
+    return _optionalPromptIsDue(cached, _clock().millisecondsSinceEpoch)
+        ? cached
+        : null;
   }
 
   /// Records that an optional prompt was actually presented to the user.
@@ -102,6 +117,51 @@ class UpdateRepository {
       return null;
     }
   }
+
+  Future<void> _syncBackgroundUpdate() async {
+    final state = await _nativeBridge?.readBackgroundUpdateState();
+    if (state == null) return;
+
+    final checkedAt = _asInt(state['checkedAt']);
+    if (checkedAt == null || checkedAt <= 0) return;
+    final localCheckedAt = _preferences.getInt(_lastCheckKey) ?? 0;
+    if (checkedAt <= localCheckedAt) return;
+
+    await _preferences.setInt(_lastCheckKey, checkedAt);
+    final rawInfo = state['updateInfoJson'];
+    if (rawInfo is! String || rawInfo.trim().isEmpty) {
+      await _clearCachedUpdate();
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(rawInfo);
+      if (decoded is! Map) {
+        throw const FormatException('Invalid background update state.');
+      }
+      final update = AppUpdateInfo.fromJson(
+        decoded.map((key, value) => MapEntry(key.toString(), value)),
+        currentBuild: _config.versionCode,
+      );
+      if (update.buildNumber <= _config.versionCode) {
+        await _clearCachedUpdate();
+        return;
+      }
+      await _preferences.setString(
+        _updateInfoKey,
+        jsonEncode(update.toJson()),
+      );
+    } catch (_) {
+      await _clearCachedUpdate();
+    }
+  }
+
+  static int? _asInt(Object? value) => switch (value) {
+        int number => number,
+        num number => number.toInt(),
+        String text => int.tryParse(text),
+        _ => null,
+      };
 
   Future<AppUpdateInfo?> _fetchAndPersist() async {
     final response = await _dio.get<Object?>(

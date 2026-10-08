@@ -34,9 +34,9 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Deliberately small Android integration seam for shared WebView cookies,
- * Keystore-backed migration of the old app session, media-store actions, and
- * the platform-owned APK installation handoff. Product screens and flow
- * orchestration live in Flutter.
+ * Keystore-backed migration of the old app session, media-store actions,
+ * background update scheduling/result handoff, and platform-owned APK
+ * installation. Product screens and flow orchestration live in Flutter.
  */
 class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
@@ -52,6 +52,7 @@ class MainActivity : FlutterFragmentActivity() {
         clearLegacyPlaintextCredentials()
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(::handleMethodCall)
+        runCatching { UpdateCheckScheduler.schedule(applicationContext) }
     }
 
     private fun handleMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -72,6 +73,7 @@ class MainActivity : FlutterFragmentActivity() {
             "requestNotificationPermission" -> requestNotificationPermission(result)
             "setDailyReminder" -> setDailyReminder(call, result)
             "restoreDailyReminders" -> restoreDailyReminders(result)
+            "readBackgroundUpdateState" -> result.success(BackgroundUpdateStore.read(this))
             "canInstallApks" -> result.success(canInstallApks())
             "updateDownloadDirectory" -> result.success(updateDownloadDirectory())
             "requestInstallApkPermission" -> requestInstallApkPermission(result)
