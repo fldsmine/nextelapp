@@ -77,9 +77,12 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     try {
       final user = await repository.validateStoredSession();
       if (!mounted) return;
+      ref.read(currentUserProvider.notifier).state =
+          user == null || user.isSuspended ? null : user;
       if (await _presentStartupUpdate(pendingUpdateCheck)) return;
       if (!mounted) return;
       if (user == null) {
+        ref.read(currentUserProvider.notifier).state = null;
         context.go(AppRoutes.login);
         return;
       }
@@ -100,6 +103,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
       if (await _presentStartupUpdate(pendingUpdateCheck)) return;
       if (!mounted) return;
       if (failure.statusCode == 401) {
+        ref.read(currentUserProvider.notifier).state = null;
         context.go(AppRoutes.login);
       } else if (failure.statusCode == 403) {
         final supportToken = failure.dataMap['support_token']?.toString();
@@ -132,6 +136,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     } on ApiFailure catch (failure) {
       if (!mounted) return;
       if (failure.statusCode == 401) {
+        ref.read(currentUserProvider.notifier).state = null;
         context.go(AppRoutes.login);
       } else if (failure.statusCode == 403) {
         final supportToken = failure.dataMap['support_token']?.toString();
@@ -165,6 +170,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
           serverRevokedCurrentToken: serverRevoked,
         );
     if (!mounted) return;
+    ref.read(currentUserProvider.notifier).state = null;
     context.go(
       AppRoutes.suspended,
       extra: SuspendedRouteDetails(

@@ -40,7 +40,7 @@ The UI-only Java helper methods (`saveCanvasImage`, `saveCanvasImageLess`, `shar
 
 ## 4. Origins, navigation, and auth expiry
 
-- The internal origin is the exact configured `WEB_BASE_URL` scheme, host, and port. Same-origin relative paths remain in the WebView. The native drawer currently loads `/dashboard`, `/dashboard/vas`, and `/dashboard/profile`.
+- The internal origin is the exact configured `WEB_BASE_URL` scheme, host, and port. Same-origin relative paths remain in the WebView. The Flutter drawer loads `/dashboard`, `/dashboard/vas`, and `/dashboard/profile`; its account header uses the authenticated `GET user` profile, while Share/Rate use Android's text chooser and Play Store/web listing bridge. Airdrops retains the legacy “coming soon” message.
 - `/mini-app?logged_out=1` is a server-side logout signal: stop the navigation, revoke/queue the bearer token, clear WebView cookies and DOM storage, restore the app-gate cookie, and return to Login.
 - `/login` and `/auth/login` are intercepted. If a local token exists, retry `web-session`; otherwise route to native Login.
 - Other top-level `http`, `https`, `mailto`, and `tel` URLs are handed to the operating system. Cross-origin subframes and unsupported schemes are blocked. An HTTP URL is not considered trusted merely because its host matches an HTTPS origin.
@@ -75,4 +75,4 @@ The URI handoff now follows the declared plugin API and its native default path.
 
 ## 8. Verification still required
 
-The remote Dashboard's Laravel behavior cannot be tested from this repository. Before release, verify `web-session` redirects and cookie domain attributes against the backend, confirm all eight JS method call sites and argument shapes with the deployed page, and test picker/camera, canvas save/share, offline retry, auth expiry, and Android back behavior on supported API levels. Do not add extra bridge methods based only on guessed server behavior.
+The remote Dashboard's Laravel behavior cannot be tested from this repository. Before release, verify `web-session` redirects and cookie domain attributes against the backend, confirm all eight JS method call sites and argument shapes with the deployed page, and test picker/camera, canvas and app-text sharing, Play Store fallback, offline retry, auth expiry, profile avatar loading, and Android back behavior on supported API levels. Do not add extra bridge methods based only on guessed server behavior.

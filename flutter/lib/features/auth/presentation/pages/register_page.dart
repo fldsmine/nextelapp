@@ -218,6 +218,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       if (result.user.isSuspended) {
         await repository.handleSuspended(serverRevokedCurrentToken: false);
         if (mounted) {
+          ref.read(currentUserProvider.notifier).state = null;
           context.go(
             AppRoutes.suspended,
             extra: const SuspendedRouteDetails(
@@ -227,6 +228,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         }
         return;
       }
+      ref.read(currentUserProvider.notifier).state = result.user;
       if (result.verificationRequired) {
         context.go(AppRoutes.verify, extra: result.user.email);
         return;

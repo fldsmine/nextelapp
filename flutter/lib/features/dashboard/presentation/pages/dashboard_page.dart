@@ -16,6 +16,7 @@ import '../../../../app/theme/app_theme.dart';
 import '../../../../core/errors/api_failure.dart';
 import '../../../../core/security/native_platform_bridge.dart';
 import '../../../../features/auth/data/auth_repository.dart';
+import '../../../../features/auth/domain/user_account.dart';
 import '../../../../features/auth/presentation/pages/suspended_page.dart';
 import '../../domain/canvas_image_payload.dart';
 import '../../domain/dashboard_bridge_message.dart';
@@ -387,7 +388,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     } catch (_) {
       // Keep the user-facing flow available even if secure cleanup fails.
     } finally {
-      if (mounted) context.go(AppRoutes.login);
+      if (mounted) {
+        ref.read(currentUserProvider.notifier).state = null;
+        context.go(AppRoutes.login);
+      }
     }
   }
 
@@ -399,7 +403,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     } catch (_) {
       // Local token and WebView storage are cleared before best-effort revoke.
     } finally {
-      if (mounted) context.go(AppRoutes.login);
+      if (mounted) {
+        ref.read(currentUserProvider.notifier).state = null;
+        context.go(AppRoutes.login);
+      }
     }
   }
 
@@ -626,72 +633,188 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ),
       );
 
-  Widget _buildDrawer() => Drawer(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-                color: context.nextelColors.primary,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Image.asset(
-                      'assets/images/branding/nextel_logo.png',
-                      width: 158,
-                      height: 58,
-                      fit: BoxFit.contain,
-                      semanticLabel: 'Nextel Connect',
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Next-Gen Memecoin App',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
+  Widget _buildDrawer() {
+    final user = ref.watch(currentUserProvider);
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            _buildDrawerHeader(user),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                children: [
+                  _drawerItem(Icons.dashboard_outlined, 'Dashboard',
+                      onTap: () => _loadTrustedPath('/dashboard')),
+                  _drawerItem(Icons.bolt_outlined, 'Features / VAS',
+                      onTap: () => _loadTrustedPath('/dashboard/vas')),
+                  _drawerItem(Icons.person_outline, 'Profile',
+                      onTap: () => _loadTrustedPath('/dashboard/profile')),
+                  _drawerItem(Icons.support_agent_outlined, 'Support tickets',
+                      onTap: _openSupportTickets),
+                  _drawerItem(Icons.sports_esports_outlined, 'System games',
+                      onTap: () => context.push(AppRoutes.games)),
+                  _drawerItem(Icons.local_offer_outlined, 'Coupon search',
+                      onTap: () => context.push(AppRoutes.coupon)),
+                  _drawerItem(Icons.info_outline, 'About Nextel',
+                      onTap: () => context.push(AppRoutes.about)),
+                  _drawerItem(Icons.quiz_outlined, 'FAQs',
+                      onTap: () => context.push(AppRoutes.faq)),
+                  _drawerItem(Icons.description_outlined, 'Terms & conditions',
+                      onTap: () => context.push(AppRoutes.terms)),
+                  _drawerItem(Icons.privacy_tip_outlined, 'Privacy policy',
+                      onTap: () => context.push(AppRoutes.privacy)),
+                  _drawerItem(Icons.settings_outlined, 'App settings',
+                      onTap: () => context.push(AppRoutes.settings)),
+                  const Divider(height: 18),
+                  _drawerItem(Icons.share_outlined, 'Share', onTap: _shareApp),
+                  _drawerItem(Icons.star_outline, 'Rate us', onTap: _rateApp),
+                  _drawerItem(Icons.card_giftcard_outlined, 'Airdrops',
+                      onTap: _showAirdrops),
+                  const Divider(height: 18),
+                  _drawerItem(
+                    Icons.logout,
+                    'Log out',
+                    onTap: _confirmLogout,
+                    color: context.nextelColors.danger,
+                  ),
+                ],
               ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  children: [
-                    _drawerItem(Icons.dashboard_outlined, 'Dashboard',
-                        onTap: () => _loadTrustedPath('/dashboard')),
-                    _drawerItem(Icons.bolt_outlined, 'Features / VAS',
-                        onTap: () => _loadTrustedPath('/dashboard/vas')),
-                    _drawerItem(Icons.person_outline, 'Profile',
-                        onTap: () => _loadTrustedPath('/dashboard/profile')),
-                    _drawerItem(Icons.support_agent_outlined, 'Support tickets',
-                        onTap: _openSupportTickets),
-                    _drawerItem(Icons.sports_esports_outlined, 'System games',
-                        onTap: () => context.push(AppRoutes.games)),
-                    _drawerItem(Icons.local_offer_outlined, 'Coupon search',
-                        onTap: () => context.push(AppRoutes.coupon)),
-                    _drawerItem(Icons.info_outline, 'About Nextel',
-                        onTap: () => context.push(AppRoutes.about)),
-                    _drawerItem(Icons.quiz_outlined, 'FAQs',
-                        onTap: () => context.push(AppRoutes.faq)),
-                    _drawerItem(Icons.description_outlined, 'Terms & conditions',
-                        onTap: () => context.push(AppRoutes.terms)),
-                    _drawerItem(Icons.privacy_tip_outlined, 'Privacy policy',
-                        onTap: () => context.push(AppRoutes.privacy)),
-                    _drawerItem(Icons.settings_outlined, 'App settings',
-                        onTap: () => context.push(AppRoutes.settings)),
-                    const Divider(height: 18),
-                    _drawerItem(
-                      Icons.logout,
-                      'Log out',
-                      onTap: _confirmLogout,
-                      color: context.nextelColors.danger,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
+
+  Widget _buildDrawerHeader(UserAccount? user) {
+    final username = user?.username.trim() ?? '';
+    final name = user?.name.trim() ?? '';
+    final email = user?.email.trim() ?? '';
+    final greeting = username.isNotEmpty
+        ? 'Hi $username'
+        : name.isNotEmpty
+            ? 'Hi $name'
+            : 'Nextel';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      color: context.nextelColors.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Image.asset(
+            'assets/images/branding/nextel_logo.png',
+            width: 158,
+            height: 58,
+            fit: BoxFit.contain,
+            semanticLabel: 'Nextel Connect',
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Next-Gen Memecoin App',
+            style: TextStyle(color: Colors.white70),
+          ),
+          if (user != null) ...[
+            const SizedBox(height: 18),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                _scaffoldKey.currentState?.closeDrawer();
+                unawaited(_loadTrustedPath('/dashboard/profile'));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    _buildDrawerAvatar(user),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            greeting,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (email.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerAvatar(UserAccount user) {
+    final candidate = user.username.trim().isNotEmpty
+        ? user.username.trim()
+        : user.name.trim();
+    final initial = candidate.isEmpty
+        ? 'N'
+        : String.fromCharCode(candidate.runes.first).toUpperCase();
+    final fallback = CircleAvatar(
+      radius: 27,
+      backgroundColor: Colors.white,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: context.nextelColors.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    final uri = _profileImageUri(user.avatarUrl);
+    if (uri == null) return fallback;
+    return CircleAvatar(
+      radius: 27,
+      backgroundColor: Colors.white,
+      child: ClipOval(
+        child: Image.network(
+          uri.toString(),
+          width: 54,
+          height: 54,
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, progress) =>
+              progress == null ? child : fallback,
+          errorBuilder: (_, __, ___) => fallback,
+        ),
+      ),
+    );
+  }
+
+  Uri? _profileImageUri(String rawUrl) {
+    final raw = rawUrl.trim();
+    if (raw.isEmpty) return null;
+    final parsed = Uri.tryParse(raw);
+    if (parsed == null) return null;
+    final uri = parsed.hasScheme ? parsed : _config.webOrigin.resolveUri(parsed);
+    if (uri.scheme.toLowerCase() != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      return null;
+    }
+    return uri;
+  }
 
   Widget _drawerItem(
     IconData icon,
@@ -707,6 +830,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           onTap();
         },
       );
+
+  Future<void> _shareApp() async {
+    final text = "Hey! I'm using this awesome app. You should try it too!\n"
+        'I Invest in Call Minutes And Earn Daily Returns Through Nextel Connect '
+        'ever since, its a live changer.\n\n${_config.frontBaseUrl}';
+    final shared = await _nativeBridge.shareText(
+      subject: 'Check out this app',
+      text: text,
+    );
+    if (mounted && !shared) _showMessage('Unable to open the share menu.');
+  }
+
+  Future<void> _rateApp() async {
+    final shouldRate = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Enjoying Nextel?'),
+            content: const Text(
+              'Your feedback helps other people discover the app.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Not now'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Rate in Play Store'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!shouldRate || !mounted) return;
+    final opened = await _nativeBridge.openPlayStoreListing();
+    if (mounted && !opened) _showMessage('Unable to open the Play Store.');
+  }
+
+  void _showAirdrops() => _showMessage('Feature coming soon. Keep anticipating');
 
   Future<void> _confirmLogout() async {
     final shouldLogout = await showDialog<bool>(

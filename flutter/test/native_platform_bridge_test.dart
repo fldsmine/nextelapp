@@ -48,6 +48,40 @@ void main() {
     });
   });
 
+  test('forwards text to the native app-sharing chooser', () async {
+    MethodCall? receivedCall;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      receivedCall = call;
+      return true;
+    });
+    final bridge = NativePlatformBridge(channel: _channel);
+
+    expect(
+      await bridge.shareText(
+        subject: 'Check out this app',
+        text: 'Try Nextel at https://example.test',
+      ),
+      isTrue,
+    );
+    expect(receivedCall?.method, 'shareText');
+    expect(receivedCall?.arguments, {
+      'subject': 'Check out this app',
+      'text': 'Try Nextel at https://example.test',
+    });
+  });
+
+  test('opens the app listing through the native Play Store bridge', () async {
+    MethodCall? receivedCall;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      receivedCall = call;
+      return true;
+    });
+    final bridge = NativePlatformBridge(channel: _channel);
+
+    expect(await bridge.openPlayStoreListing(), isTrue);
+    expect(receivedCall?.method, 'openPlayStoreListing');
+  });
+
   test('queues logout tokens for native background revocation', () async {
     MethodCall? receivedCall;
     messenger.setMockMethodCallHandler(_channel, (call) async {

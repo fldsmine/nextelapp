@@ -88,6 +88,8 @@ class MainActivity : FlutterFragmentActivity() {
             "updateDownloadDirectory" -> result.success(updateDownloadDirectory())
             "requestInstallApkPermission" -> requestInstallApkPermission(result)
             "installApk" -> installApk(call, result)
+            "shareText" -> shareText(call, result)
+            "openPlayStoreListing" -> openPlayStoreListing(result)
             "saveCanvasImage" -> saveCanvasImage(call, result)
             "shareCanvasImage" -> shareCanvasImage(call, result)
             else -> result.notImplemented()
@@ -656,6 +658,39 @@ class MainActivity : FlutterFragmentActivity() {
         Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             == PackageManager.PERMISSION_GRANTED
+
+    private fun shareText(call: MethodCall, result: MethodChannel.Result) {
+        val text = call.argument<String>("text")?.takeIf(String::isNotBlank)
+        if (text == null) {
+            result.error("invalid_share_text", "Share text is required.", null)
+            return
+        }
+        val subject = call.argument<String>("subject")?.takeIf(String::isNotBlank)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+            if (subject != null) putExtra(Intent.EXTRA_SUBJECT, subject)
+        }
+        val opened = runCatching {
+            startActivity(Intent.createChooser(intent, "Share Nextel"))
+        }.isSuccess
+        result.success(opened)
+    }
+
+    private fun openPlayStoreListing(result: MethodChannel.Result) {
+        val packageId = packageName
+        val marketIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("market://details?id=$packageId"),
+        )
+        val webIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://play.google.com/store/apps/details?id=$packageId"),
+        )
+        val opened = runCatching { startActivity(marketIntent) }.isSuccess ||
+            runCatching { startActivity(webIntent) }.isSuccess
+        result.success(opened)
+    }
 
     private fun saveCanvasImage(call: MethodCall, result: MethodChannel.Result) {
         val bytes = decodeImage(call.argument<String>("data"), result) ?: return

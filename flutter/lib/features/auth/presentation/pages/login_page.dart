@@ -130,6 +130,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
       return;
     }
+    ref.read(currentUserProvider.notifier).state = result.user;
     if (result.verificationRequired) {
       if (mounted) context.go(AppRoutes.verify, extra: result.user.email);
       return;
@@ -161,6 +162,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           serverRevokedCurrentToken: serverRevoked,
         );
     if (!mounted) return;
+    ref.read(currentUserProvider.notifier).state = null;
     context.go(
       AppRoutes.suspended,
       extra: SuspendedRouteDetails(

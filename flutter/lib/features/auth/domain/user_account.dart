@@ -5,6 +5,7 @@ class UserAccount {
     required this.status,
     required this.emailVerified,
     this.username = '',
+    this.avatarUrl = '',
   });
 
   final String name;
@@ -12,6 +13,7 @@ class UserAccount {
   final String email;
   final String status;
   final bool emailVerified;
+  final String avatarUrl;
 
   bool get isSuspended =>
       const {'suspended', 'banned', 'blocked'}.contains(status.toLowerCase());
@@ -28,12 +30,24 @@ class UserAccount {
         : (json['email_verified_at']?.toString().isNotEmpty ?? false);
 
     return UserAccount(
-      name: (json['full_name'] as String? ?? json['name'] as String? ?? '').trim(),
-      username: (json['username'] as String? ?? '').trim(),
-      email: (json['email'] as String? ?? '').trim(),
-      status: (json['status'] as String? ?? '').trim(),
+      name: _firstString(json, const ['full_name', 'fullname', 'name']),
+      username: _firstString(json, const ['username', 'uname']),
+      email: _firstString(json, const ['email']),
+      status: _firstString(json, const ['status']),
       emailVerified: emailVerified,
+      avatarUrl: _firstString(
+        json,
+        const ['userDP', 'user_dp', 'avatar_url', 'avatar'],
+      ),
     );
+  }
+
+  static String _firstString(Map<String, Object?> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
   }
 
   static Map<String, Object?> _asMap(Object? value) {

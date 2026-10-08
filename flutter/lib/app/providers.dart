@@ -6,6 +6,7 @@ import '../core/network/nextel_api.dart';
 import '../core/security/native_platform_bridge.dart';
 import '../core/security/session_store.dart';
 import '../features/auth/data/auth_repository.dart';
+import '../features/auth/domain/user_account.dart';
 import '../features/update/data/update_repository.dart';
 
 final appConfigProvider = Provider<AppConfig>(
@@ -23,6 +24,9 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 final sessionStoreProvider = Provider<SessionStore>(
   (ref) => throw StateError('SessionStore was not initialized.'),
 );
+
+/// Current API profile for the authenticated Flutter session and drawer.
+final currentUserProvider = StateProvider<UserAccount?>((ref) => null);
 
 final nextelApiProvider = Provider<NextelApi>((ref) {
   return NextelApi(

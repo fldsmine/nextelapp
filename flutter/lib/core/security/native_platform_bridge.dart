@@ -272,6 +272,33 @@ class NativePlatformBridge {
     }
   }
 
+  /// Opens Android's native text-sharing chooser.
+  Future<bool> shareText({required String subject, required String text}) async {
+    if (text.trim().isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'shareText',
+            {'subject': subject, 'text': text},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Opens this app's Play Store page, falling back to the web listing.
+  Future<bool> openPlayStoreListing() async {
+    try {
+      return await _channel.invokeMethod<bool>('openPlayStoreListing') ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Opens the Android package installer for an APK saved by the updater.
   Future<bool> installApk(String filePath) async {
     try {
