@@ -13,4 +13,5 @@ abstract final class AppRoutes {
   static const coupon = '/coupon';
   static const games = '/games';
   static const about = '/about';
+  static const faq = '/faq';
 }

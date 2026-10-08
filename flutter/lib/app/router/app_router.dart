@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/about/presentation/pages/about_page.dart';
+import '../../features/about/presentation/pages/faq_page.dart';
 import '../../features/auth/presentation/pages/email_verification_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/password_reset_page.dart';
@@ -82,10 +84,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.about,
-        builder: (context, state) => const FeaturePlaceholderPage(
-          title: 'About Nextel',
-          detail: 'Information pages are being migrated.',
-        ),
+        builder: (context, state) => const AboutPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.faq,
+        builder: (context, state) => const FaqPage(),
       ),
       GoRoute(
         path: AppRoutes.terms,

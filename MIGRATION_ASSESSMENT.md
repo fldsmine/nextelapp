@@ -21,7 +21,8 @@
 | Support tickets | Implemented | API contract and device flow remain pending. |
 | Coupon verification | Implemented | API response fields and device flow remain pending. |
 | App settings | Implemented (source-level) | Code reviewed; analyzer, tests, Android build and device behavior remain pending. |
-| Games, About/FAQ, update management and other native integrations | Not yet migrated | See the feature checklist below. |
+| About and FAQ | Implemented (source-level) | Local copy and navigation implemented; analyzer, tests, Android build and device behavior remain pending. |
+| Games, update management and other native integrations | Not yet migrated | See the feature checklist below. |
 
 
 | Android screen / entry → destinations | Behavior, data, validation and states to preserve | Flutter target |
@@ -100,4 +101,4 @@ Use feature-first folders with `flutter_riverpod` for state, `go_router` for aut
 
 ## 7. Baseline verification
 
-The Android source still has only generated example tests; Flutter now has unit tests for auth validation, API failures, bridge parsing, Support, Coupon and settings models. This environment has no Flutter, Dart, Java, or Android SDK on `PATH`, so Flutter analysis/tests/builds (and Android Gradle builds) cannot currently be run. Install/configure Flutter + Android toolchains before claiming a verified migration.
+The Android source still has only generated example tests; Flutter now has unit tests for auth validation, API failures, bridge parsing, Support, Coupon, settings models and About/FAQ content. This environment has no Flutter, Dart, Java, or Android SDK on `PATH`, so Flutter analysis/tests/builds (and Android Gradle builds) cannot currently be run. Install/configure Flutter + Android toolchains before claiming a verified migration.
