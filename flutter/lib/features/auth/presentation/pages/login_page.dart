@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:local_auth/local_auth.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../app/router/app_router.dart';
@@ -24,7 +23,6 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _localAuth = LocalAuthentication();
 
   bool _rememberMe = true;
   bool _passwordVisible = false;
@@ -55,9 +53,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (!session.biometricEnabled || !session.rememberMe) return;
       final token = await session.readToken();
       if (token == null || token.isEmpty || !mounted) return;
-      final canAuthenticate = await _localAuth.canCheckBiometrics ||
-          await _localAuth.isDeviceSupported();
-      if (mounted) setState(() => _biometricAvailable = canAuthenticate);
+      final canAuthenticate = await ref
+          .read(nativePlatformBridgeProvider)
+          .canAuthenticateWithStrongBiometrics();
+      if (mounted) {
+        setState(
+          () => _biometricAvailable =
+              canAuthenticate &&
+              _rememberMe &&
+              session.biometricEnabled &&
+              session.rememberMe,
+        );
+      }
     } catch (_) {
       // Devices without supported strong biometrics simply hide the shortcut.
     }
@@ -165,14 +172,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _biometricLogin() async {
     if (_loading || !_biometricAvailable) return;
+    final session = ref.read(sessionStoreProvider);
+    if (!session.biometricEnabled || !session.rememberMe) {
+      setState(() => _biometricAvailable = false);
+      return;
+    }
     setState(() => _generalError = null);
     try {
-      final authenticated = await _localAuth.authenticate(
-        localizedReason: 'Confirm your identity to sign in to Nextel.',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+      final bridge = ref.read(nativePlatformBridgeProvider);
+      if (!await bridge.canAuthenticateWithStrongBiometrics()) {
+        if (mounted) setState(() => _biometricAvailable = false);
+        return;
+      }
+      final authenticated = await bridge.authenticateWithStrongBiometrics(
+        title: 'Biometric sign-in',
+        subtitle: 'Confirm your identity to continue',
       );
       if (!authenticated || !mounted) return;
       setState(() => _loading = true);
@@ -259,7 +273,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ? null
                     : (value) async {
                         final next = value ?? false;
-                        setState(() => _rememberMe = next);
+                        setState(() {
+                          _rememberMe = next;
+                          if (!next) _biometricAvailable = false;
+                        });
                         await ref.read(sessionStoreProvider).setRememberMe(next);
                         if (next && mounted) _checkBiometricAvailability();
                       },

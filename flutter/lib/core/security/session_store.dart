@@ -3,14 +3,18 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Stores bearer tokens and retryable logout tokens in encrypted Android
-/// storage. Remember-Me=false sessions exist only in memory for this process.
+import 'native_platform_bridge.dart';
+
+/// Stores bearer tokens and retryable logout tokens in encrypted storage.
+/// Remember-Me=false sessions exist only in memory for this process.
 class SessionStore {
   SessionStore({
     FlutterSecureStorage? secureStorage,
     required SharedPreferences preferences,
+    NativePlatformBridge? nativePlatformBridge,
   })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _preferences = preferences;
+        _preferences = preferences,
+        _nativePlatformBridge = nativePlatformBridge;
 
   static const String _tokenKey = 'session.api_token.v1';
   static const String _logoutQueueKey = 'session.pending_logout_tokens.v1';
@@ -19,6 +23,7 @@ class SessionStore {
 
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _preferences;
+  final NativePlatformBridge? _nativePlatformBridge;
   String? _volatileToken;
 
   bool get rememberMe => _preferences.getBool(_rememberKey) ?? true;
@@ -96,6 +101,25 @@ class SessionStore {
     }
   }
 
+  /// Rehydrates WorkManager after an app update from a build with only the Dart queue.
+  Future<void> synchronizeNativeLogoutQueue() async {
+    final bridge = _nativePlatformBridge;
+    if (bridge == null) return;
+    final List<String> tokens;
+    try {
+      tokens = await pendingLogoutTokens();
+    } catch (_) {
+      return;
+    }
+    for (final token in tokens) {
+      try {
+        await bridge.queueLogoutRevocation(token);
+      } catch (_) {
+        // Keep the secure Flutter copy; foreground retry remains available.
+      }
+    }
+  }
+
   Future<void> queueLogoutToken(String token) async {
     if (token.trim().isEmpty) return;
     final queue = (await pendingLogoutTokens()).toSet()..add(token);
@@ -103,6 +127,7 @@ class SessionStore {
       key: _logoutQueueKey,
       value: jsonEncode(queue.toList()),
     );
+    await _mirrorQueuedLogoutToken(token);
   }
 
   Future<void> removeQueuedLogoutToken(String token) async {
@@ -115,6 +140,23 @@ class SessionStore {
         key: _logoutQueueKey,
         value: jsonEncode(queue),
       );
+    }
+    await _mirrorRemovedLogoutToken(token);
+  }
+
+  Future<void> _mirrorQueuedLogoutToken(String token) async {
+    try {
+      await _nativePlatformBridge?.queueLogoutRevocation(token);
+    } catch (_) {
+      // Keep the encrypted Flutter queue for the next foreground retry.
+    }
+  }
+
+  Future<void> _mirrorRemovedLogoutToken(String token) async {
+    try {
+      await _nativePlatformBridge?.removeQueuedLogoutRevocation(token);
+    } catch (_) {
+      // A stale native copy is safe: WorkManager treats an already-revoked token as complete.
     }
   }
 }

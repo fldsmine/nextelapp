@@ -4,7 +4,7 @@ The Flutter app owns update state, prompting and release notes. Android retains 
 
 ## Endpoint and cadence
 
-`UpdateRepository` calls the existing `GET <updateApiBaseUrl>/app-upgrade` endpoint with the Kotlin contract:
+`UpdateRepository` calls the existing `GET <updateApiBaseUrl>/app-upgrade` endpoint with the Kotlin contract. `UPDATE_API_BASE_URL` is an intentionally separate build input (`NEXTEL_UPDATE_API_BASE_URL` / `nextelUpdateApiBaseUrl`), because the retained Kotlin updater uses a separate legacy feed host. Confirm its value for staging and production with the backend owner; do not assume it matches `API_BASE_URL`.
 
 - `platform=android`
 - `current_version=<native version name>`
@@ -24,6 +24,8 @@ No legacy public-storage permission is requested for updater downloads. Android 
 
 ## WorkManager and remaining verification
 
-The Flutter Android module now schedules a unique 24-hour periodic WorkManager job with a connected-network constraint. Transient failures return `Result.retry()`; the feed's contract-mismatch responses (HTTP 404/405) are not retried. Worker results are stored separately from Flutter plugin preferences and transferred through a narrow MethodChannel method, avoiding reliance on the plugin's private storage format. No notification is emitted while the app is closed; the pending update is presented on the next app start/resume, matching the previous foreground-prompt behavior.
+The Flutter Android module schedules a unique 24-hour periodic WorkManager job with a connected-network constraint. Transient failures return `Result.retry()`; the feed's contract-mismatch responses (HTTP 404/405) are not retried. Worker results are stored separately from Flutter plugin preferences and transferred through a narrow MethodChannel method, avoiding reliance on the plugin's private storage format. No notification is emitted while the app is closed; the pending update is presented on the next app start/resume, matching the previous foreground-prompt behavior.
+
+Queued logout revocations use a separate one-time, connected-network WorkManager chain. Bearer tokens are encrypted individually with AES-GCM under a dedicated Android Keystore key; only encrypted token payloads are stored in native preferences, and tokens are never placed in WorkManager input data or logs. This work uses its own unique-work name and is not cancelled by update or reminder operations.
 
 WorkManager timing, reboot/upgrade persistence, foreground handoff, unknown-app permission, and installer behavior still need Android device verification. This environment has no Android/Flutter toolchains, so those checks and the Dart test suite could not be executed here.

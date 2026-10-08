@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:local_auth/local_auth.dart';
 
 import '../../../../app/providers.dart';
 import '../../../../app/router/app_routes.dart';
@@ -151,19 +150,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
 
-      final authentication = LocalAuthentication();
-      final deviceSupported = await authentication.isDeviceSupported();
-      final canCheckBiometrics = deviceSupported
-          ? await authentication.canCheckBiometrics
-          : false;
-      if (!mounted) return;
-      if (!canCheckBiometrics) {
+      final bridge = ref.read(nativePlatformBridgeProvider);
+      if (!await bridge.canAuthenticateWithStrongBiometrics()) {
         _showMessage('Strong biometrics are not available on this device.');
         return;
       }
-      final authenticated = await authentication.authenticate(
-        localizedReason: 'Enable biometric login for your Nextel account',
-        options: const AuthenticationOptions(biometricOnly: true),
+      final authenticated = await bridge.authenticateWithStrongBiometrics(
+        title: 'Enable biometric login',
+        subtitle: 'Confirm your identity to enable biometric login',
       );
       if (!mounted || !authenticated) return;
 

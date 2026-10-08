@@ -24,7 +24,10 @@ Future<void> main() async {
   }
   final appConfig = AppConfig.fromNative(nativeConfig);
   final preferences = await SharedPreferences.getInstance();
-  final sessionStore = SessionStore(preferences: preferences);
+  final sessionStore = SessionStore(
+    preferences: preferences,
+    nativePlatformBridge: nativeBridge,
+  );
 
   // Import the old named preferences, game histories and Keystore-protected
   // Sanctum token before any route can decide that the person is signed out.
@@ -33,6 +36,7 @@ Future<void> main() async {
     sessionStore: sessionStore,
     preferences: preferences,
   ).migrate();
+  await sessionStore.synchronizeNativeLogoutQueue();
   if (preferences.getBool('daily_reminder') ?? false) {
     // Rebuild one-shot alarms after upgrading from the legacy receiver or
     // returning from a device reboot, without prompting during app startup.

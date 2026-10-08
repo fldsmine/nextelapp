@@ -32,7 +32,7 @@ The registered Java object name is `Android`. Its annotated public operations an
 | `openAppSettings()` | none | Opens native App Settings. | Push Flutter Settings without replacing/recreating the Dashboard WebView. |
 | `openSupportTickets()` | none | Opens native Support with the current account token. | Push Flutter Support with the current secure bearer token. |
 | `openCouponSearch()` | none | Opens native Coupon Search. | Push Flutter Coupon Search. |
-| `logout()` | none | Runs the native retryable logout and clears web state. | Run the same secure token revocation/queue and cookie/WebStorage clearing flow, then route to Login. |
+| `logout()` | none | Runs the native retryable logout and clears web state. | Queue the encrypted token in Flutter secure storage and the Android Keystore-backed WorkManager queue, clear cookies/WebStorage, and route to Login without waiting for network revocation. |
 | `handleCanvasImage(base64)` | one base64 image string | Saves a PNG named `NovaPNL-<timestamp>.png` to Pictures/NovaPNL using MediaStore on Android 10+, and legacy external Pictures storage/permission below Android 10. | Decode/size-check and call the native MediaStore/save bridge; show a clear success or failure state. |
 | `handleCanvasShare(base64)` | one base64 or data-URI string | Writes a temporary PNG under app cache and launches the Android share chooser. | Decode/size-check and call the native FileProvider/share bridge. |
 

@@ -16,6 +16,8 @@ import android.provider.Settings
 import android.util.Base64
 import android.webkit.CookieManager
 import android.webkit.WebStorage
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -33,15 +35,17 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Deliberately small Android integration seam for shared WebView cookies,
- * Keystore-backed migration of the old app session, media-store actions,
- * background update scheduling/result handoff, and platform-owned APK
- * installation. Product screens and flow orchestration live in Flutter.
+ * Keystore-backed migration of the old app session, strong-biometric prompts,
+ * media-store actions, background update/logout work and APK installation.
+ * Product screens and flow orchestration live in Flutter.
  */
 class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
     private var pendingCanvasBytes: ByteArray? = null
     private var pendingCanvasResult: MethodChannel.Result? = null
     private var pendingNotificationPermissionResult: MethodChannel.Result? = null
+    private var strongBiometricPrompt: BiometricPrompt? = null
+    private var pendingStrongBiometricResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -49,6 +53,11 @@ class MainActivity : FlutterFragmentActivity() {
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(::handleMethodCall)
         runCatching { UpdateCheckScheduler.schedule(applicationContext) }
+        runCatching {
+            if (PendingLogoutStore.read(applicationContext)?.isNotEmpty() == true) {
+                PendingLogoutScheduler.schedule(applicationContext)
+            }
+        }
     }
 
     private fun handleMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -70,6 +79,11 @@ class MainActivity : FlutterFragmentActivity() {
             "setDailyReminder" -> setDailyReminder(call, result)
             "restoreDailyReminders" -> restoreDailyReminders(result)
             "readBackgroundUpdateState" -> result.success(BackgroundUpdateStore.read(this))
+            "canAuthenticateWithStrongBiometrics" ->
+                result.success(canAuthenticateWithStrongBiometrics())
+            "authenticateWithStrongBiometrics" -> authenticateWithStrongBiometrics(call, result)
+            "queueLogoutRevocation" -> queueLogoutRevocation(call, result)
+            "removeQueuedLogoutRevocation" -> removeQueuedLogoutRevocation(call, result)
             "canInstallApks" -> result.success(canInstallApks())
             "updateDownloadDirectory" -> result.success(updateDownloadDirectory())
             "requestInstallApkPermission" -> requestInstallApkPermission(result)
@@ -78,6 +92,82 @@ class MainActivity : FlutterFragmentActivity() {
             "shareCanvasImage" -> shareCanvasImage(call, result)
             else -> result.notImplemented()
         }
+    }
+
+    private fun canAuthenticateWithStrongBiometrics(): Boolean = runCatching {
+        BiometricManager.from(this).canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG,
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }.getOrDefault(false)
+
+    private fun authenticateWithStrongBiometrics(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        if (pendingStrongBiometricResult != null) {
+            result.error("biometric_prompt_in_progress", "A biometric prompt is already open.", null)
+            return
+        }
+        if (!canAuthenticateWithStrongBiometrics()) {
+            result.success(false)
+            return
+        }
+
+        val title = call.argument<String>("title")?.takeIf(String::isNotBlank)
+            ?: "Biometric authentication"
+        val subtitle = call.argument<String>("subtitle")?.takeIf(String::isNotBlank)
+        val negativeButtonText = call.argument<String>("negativeButtonText")
+            ?.takeIf(String::isNotBlank) ?: "Cancel"
+        pendingStrongBiometricResult = result
+
+        try {
+            val prompt = BiometricPrompt(
+                this,
+                ContextCompat.getMainExecutor(this),
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(
+                        authenticationResult: BiometricPrompt.AuthenticationResult,
+                    ) {
+                        finishStrongBiometricPrompt(true)
+                    }
+
+                    override fun onAuthenticationError(
+                        errorCode: Int,
+                        errString: CharSequence,
+                    ) {
+                        finishStrongBiometricPrompt(false)
+                    }
+                },
+            )
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setNegativeButtonText(negativeButtonText)
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                .apply { if (subtitle != null) setSubtitle(subtitle) }
+                .build()
+            strongBiometricPrompt = prompt
+            prompt.authenticate(promptInfo)
+        } catch (exception: Exception) {
+            pendingStrongBiometricResult = null
+            strongBiometricPrompt = null
+            result.error("biometric_prompt_failed", exception.message, null)
+        }
+    }
+
+    private fun finishStrongBiometricPrompt(authenticated: Boolean) {
+        val result = pendingStrongBiometricResult ?: return
+        pendingStrongBiometricResult = null
+        strongBiometricPrompt = null
+        result.success(authenticated)
+    }
+
+    override fun onDestroy() {
+        val pendingResult = pendingStrongBiometricResult
+        pendingStrongBiometricResult = null
+        strongBiometricPrompt?.cancelAuthentication()
+        strongBiometricPrompt = null
+        runCatching { pendingResult?.success(false) }
+        super.onDestroy()
     }
 
     private fun runtimeConfig(): Map<String, Any> = mapOf(
@@ -452,6 +542,29 @@ class MainActivity : FlutterFragmentActivity() {
             canScheduleExact && hasNotificationPermission &&
                 DailyReminderScheduler.scheduleAll(this)
         )
+    }
+
+    private fun queueLogoutRevocation(call: MethodCall, result: MethodChannel.Result) {
+        val token = call.argument<String>("token")?.takeIf(String::isNotBlank)
+        if (token == null) {
+            result.error("invalid_logout_token", "A logout token is required.", null)
+            return
+        }
+        if (!PendingLogoutStore.enqueue(applicationContext, token)) {
+            result.error("logout_queue_unavailable", "Could not save the logout retry.", null)
+            return
+        }
+        runCatching { PendingLogoutScheduler.schedule(applicationContext) }
+        result.success(true)
+    }
+
+    private fun removeQueuedLogoutRevocation(call: MethodCall, result: MethodChannel.Result) {
+        val token = call.argument<String>("token")?.takeIf(String::isNotBlank)
+        if (token == null) {
+            result.error("invalid_logout_token", "A logout token is required.", null)
+            return
+        }
+        result.success(PendingLogoutStore.remove(applicationContext, token))
     }
 
     private fun updateDownloadDirectory(): String =

@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
 
-/// Narrow MethodChannel boundary for Android-only cookie/session/media work.
-/// No password or app-gate-cookie value is ever returned through this API.
+/// Narrow MethodChannel boundary for Android-only cookie/session/media,
+/// strong-biometric and background-work operations. Logout tokens are sent only
+/// to Android's encrypted retry queue; no password or app-gate-cookie value is
+/// returned through this API.
 class NativePlatformBridge {
   NativePlatformBridge({MethodChannel? channel})
       : _channel = channel ?? const MethodChannel(_channelName);
@@ -165,6 +167,74 @@ class NativePlatformBridge {
       return null;
     } on PlatformException {
       return null;
+    }
+  }
+
+  /// Checks Android's strong-biometric authenticator, excluding device credentials.
+  Future<bool> canAuthenticateWithStrongBiometrics() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'canAuthenticateWithStrongBiometrics',
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Presents Android's native prompt restricted to BIOMETRIC_STRONG.
+  Future<bool> authenticateWithStrongBiometrics({
+    required String title,
+    String? subtitle,
+    String negativeButtonText = 'Cancel',
+  }) async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'authenticateWithStrongBiometrics',
+            {
+              'title': title,
+              'subtitle': subtitle,
+              'negativeButtonText': negativeButtonText,
+            },
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Mirrors a logout token into Android Keystore-backed storage for WorkManager.
+  Future<bool> queueLogoutRevocation(String token) async {
+    if (token.trim().isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'queueLogoutRevocation',
+            {'token': token},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<bool> removeQueuedLogoutRevocation(String token) async {
+    if (token.trim().isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'removeQueuedLogoutRevocation',
+            {'token': token},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
     }
   }
 
