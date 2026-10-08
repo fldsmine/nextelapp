@@ -28,11 +28,14 @@ class SessionService(context: Context) {
     init {
         migrateLegacyToken()
         expireUnrememberedSession()
-        // The previous native sign-in stored a reusable password and profile snapshot in plain text.
+        // Remove legacy plaintext login credentials; biometric sign-in must
+        // unlock the encrypted token, never replay a stored password.
         prefs.edit()
             .remove(LEGACY_TOKEN_KEY)
             .remove(LEGACY_EXPIRY_KEY)
             .remove(LEGACY_PROVIDER_KEY)
+            .remove(LEGACY_USERNAME_KEY)
+            .remove(LEGACY_PASSWORD_KEY)
             .apply()
         appContext.getSharedPreferences(CONData.APP_USER_EXT, Context.MODE_PRIVATE)
             .edit()
@@ -64,18 +67,6 @@ class SessionService(context: Context) {
     }
 
     fun shouldRememberSession(): Boolean = prefs.getBoolean(REMEMBER_SESSION_KEY, true)
-
-    fun getUserName(): String = prefs.getString(LEGACY_USERNAME_KEY, "").toString()
-
-    fun getUserPass(): String = prefs.getString(LEGACY_PASSWORD_KEY, "").toString()
-
-    fun saveCredentials(u: String, p: String) {
-        prefs.edit()
-            .putString(LEGACY_USERNAME_KEY, u)
-            .putString(LEGACY_PASSWORD_KEY, p)
-            .apply()
-    }
-
 
     fun setRememberSession(remember: Boolean) {
         prefs.edit().putBoolean(REMEMBER_SESSION_KEY, remember).apply()

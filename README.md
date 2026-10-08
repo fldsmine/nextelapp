@@ -23,7 +23,7 @@ For a unit-test task (once tests exist):
 
 ## API and WebView URLs
 
-The release build defaults to the production web host and its `/api/v1` API. The debug build defaults to the Android emulator's host machine at `http://10.0.2.2:8000` and `/api/v1`.
+The release build defaults to the production web host and its `/api/v1` API. The current debug defaults are `https://api.n-calls.com` for the web host and its `/api/v1` API (the earlier emulator-host description was stale).
 
 Override debug URLs using Gradle properties or environment variables:
 
@@ -35,7 +35,9 @@ Override debug URLs using Gradle properties or environment variables:
 
 Equivalent environment variables are `NEXTEL_DEBUG_WEB_BASE_URL` and `NEXTEL_DEBUG_API_BASE_URL`. The web and API deployments must share the Laravel session store and cookie domain so the `web-session` handoff can authenticate the WebView. Cleartext HTTP is allowed only for emulator host `10.0.2.2`; use HTTPS for other development hosts.
 
-Production/release URL overrides are `NEXTEL_WEB_BASE_URL` and `NEXTEL_API_BASE_URL` (or Gradle properties `nextelWebBaseUrl` and `nextelApiBaseUrl`).
+Production/release URL overrides are `NEXTEL_WEB_BASE_URL` and `NEXTEL_API_BASE_URL` (or Gradle properties `nextelWebBaseUrl` and `nextelApiBaseUrl`). The Flutter module also keeps the update-feed base URL independently configurable with `NEXTEL_UPDATE_API_BASE_URL` or `-PnextelUpdateApiBaseUrl`; it retains the legacy update host by default. Confirm the production/staging feed host with the backend owner before release rather than assuming it is the main API host.
+
+The native app-gate cookie is supplied to builds through `NEXTEL_APP_GATE_COOKIE` (or Gradle property `nextelAppGateCookie`). It has no source-code fallback; provide it only through a protected local/CI environment. Existing WebView cookies are left intact if this input is omitted. Never add the value to Dart source or a committed configuration file.
 
 ## Signed release builds
 
@@ -46,4 +48,8 @@ No signing key or passwords are stored in the repository. Supply these environme
 - `NEXTEL_RELEASE_KEY_ALIAS`
 - `NEXTEL_RELEASE_KEY_PASSWORD`
 
-The app no longer depends on Firebase or social-login SDK configuration. Authenticated product screens are served by Livewire; Android-only settings, games, file picking, and canvas saving/sharing remain native. API tokens are stored encrypted with Android Keystore; when Remember Me is off, the token is revoked on the next process start.
+The retained Android client no longer depends on Firebase or social-login SDK configuration. Its authenticated product screens are served by Livewire; Android-specific file picking and canvas saving/sharing remain native. Flutter API tokens are stored with encrypted session storage, and queued logout revocations are mirrored into an AES-GCM/Android-Keystore queue for network-constrained WorkManager retries. When Remember Me is off, a saved token is queued for revocation on process restart. Biometric sign-in uses an Android `BIOMETRIC_STRONG` prompt to validate the remembered encrypted token and does not persist or replay the account password; legacy plaintext username/password preference keys are cleared at startup.
+
+## Flutter migration app
+
+The parallel Flutter application lives in [`flutter/`](flutter/). Its Games route (`/games`) integrates the uploaded `actual-flutter-game/` Dart sources and assets—Dice, Hangman, Ludo and Hangman scores—into the existing GoRouter/Riverpod app. Flutter-side cards/help widgets fill source imports that were not part of the upload. Legacy Dice history and Hangman score preferences are imported into the Flutter games' persistence formats. Use Flutter 3.32 or newer with Dart 3.8 or newer, then run `cd flutter && flutter pub get && flutter analyze && flutter test` to check the migration. Device/build verification still depends on the relevant Flutter and Android toolchains.

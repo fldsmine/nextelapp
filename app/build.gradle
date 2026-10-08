@@ -26,12 +26,15 @@ def debugWebBaseUrl = configureValue(
 def debugApiBaseUrl = configureValue(
         'nextelDebugApiBaseUrl', 'NEXTEL_DEBUG_API_BASE_URL', "${debugWebBaseUrl}/api/v1"
 ).toString().replaceAll('/+$', '')
+def appGateCookie = configureValue(
+        'nextelAppGateCookie', 'NEXTEL_APP_GATE_COOKIE', ''
+).toString()
 
-
-def releaseStoreFile = configureValue('NEXTEL_RELEASE_STORE_FILE', 'NEXTEL_RELEASE_STORE_FILE', 'keystore.jks')
-def releaseStorePassword = configureValue('NEXTEL_RELEASE_STORE_PASSWORD', 'NEXTEL_RELEASE_STORE_PASSWORD', '1qa2ws3ed')
-def releaseKeyAlias = configureValue('NEXTEL_RELEASE_KEY_ALIAS', 'NEXTEL_RELEASE_KEY_ALIAS', 'nextel')
-def releaseKeyPassword = configureValue('NEXTEL_RELEASE_KEY_PASSWORD', 'NEXTEL_RELEASE_KEY_PASSWORD', '1qa2ws3ed')
+// Signing material and the app-gate cookie are build inputs, never source defaults.
+def releaseStoreFile = configureValue('NEXTEL_RELEASE_STORE_FILE', 'NEXTEL_RELEASE_STORE_FILE', null)
+def releaseStorePassword = configureValue('NEXTEL_RELEASE_STORE_PASSWORD', 'NEXTEL_RELEASE_STORE_PASSWORD', null)
+def releaseKeyAlias = configureValue('NEXTEL_RELEASE_KEY_ALIAS', 'NEXTEL_RELEASE_KEY_ALIAS', null)
+def releaseKeyPassword = configureValue('NEXTEL_RELEASE_KEY_PASSWORD', 'NEXTEL_RELEASE_KEY_PASSWORD', null)
 def hasReleaseSigning = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
         .every { it != null && !it.toString().trim().isEmpty() }
 
@@ -52,6 +55,7 @@ android {
         buildConfigField "String", "WEB_BASE_URL", asBuildConfigString(productionWebBaseUrl)
         buildConfigField "String", "API_BASE_URL", asBuildConfigString(productionApiBaseUrl)
         buildConfigField "String", "FRONTBASE_URL", asBuildConfigString(productionFrontBaseUrl)
+        buildConfigField "String", "APP_GATE_COOKIE", asBuildConfigString(appGateCookie)
     }
 
     if (hasReleaseSigning) {

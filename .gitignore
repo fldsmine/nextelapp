@@ -62,5 +62,12 @@ cmake-build-*/
 /app/build/
 /app/release/
 
+# Flutter-generated state and tool metadata
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+
 # Windows files
 Thumbs.db
