@@ -48,4 +48,8 @@ No signing key or passwords are stored in the repository. Supply these environme
 - `NEXTEL_RELEASE_KEY_ALIAS`
 - `NEXTEL_RELEASE_KEY_PASSWORD`
 
-The app no longer depends on Firebase or social-login SDK configuration. Authenticated product screens are served by Livewire; Android-only settings, games, file picking, and canvas saving/sharing remain native. API tokens are stored encrypted with Android Keystore; when Remember Me is off, the token is revoked on the next process start. Biometric sign-in validates the remembered encrypted token and does not persist or replay the account password; legacy plaintext username/password preference keys are cleared at startup.
+The existing Android client no longer depends on Firebase or social-login SDK configuration. Its authenticated product screens are served by Livewire; Android-specific file picking and canvas saving/sharing remain native. API tokens are stored encrypted with Android Keystore; when Remember Me is off, the token is revoked on the next process start. Biometric sign-in validates the remembered encrypted token and does not persist or replay the account password; legacy plaintext username/password preference keys are cleared at startup.
+
+## Flutter migration app
+
+The parallel Flutter application lives in [`flutter/`](flutter/). Its Games route (`/games`) integrates the uploaded `actual-flutter-game/` Dart sources and assets—Dice, Hangman, Ludo and Hangman scores—into the existing GoRouter/Riverpod app. Flutter-side cards/help widgets fill source imports that were not part of the upload. Legacy Dice history and Hangman score preferences are imported into the Flutter games' persistence formats. Use Flutter 3.32 or newer with Dart 3.8 or newer, then run `cd flutter && flutter pub get && flutter analyze && flutter test` to check the migration. Device/build verification still depends on the relevant Flutter and Android toolchains.

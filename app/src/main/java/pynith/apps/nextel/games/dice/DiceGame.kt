@@ -79,12 +79,8 @@ class DiceGame(context: Context) {
     private var round: Int = 0
 
     private val handler = Handler(Looper.getMainLooper())
-    private val appContext = context.applicationContext
-    private val preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val flutterPreferences = appContext.getSharedPreferences(
-        FLUTTER_PREFERENCES_NAME,
-        Context.MODE_PRIVATE
-    )
+    private val preferences =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     init {
         loadHistory()
@@ -102,11 +98,9 @@ class DiceGame(context: Context) {
 
     fun setBet(value: Double) {
         if (isRolling || isAutoPlaying) return
-        betAmount = value
+        betAmount = value.coerceIn(MIN_BET.toDouble(), MAX_BET.toDouble())
         notifyChanged()
     }
-
-    fun canRoll(): Boolean = DiceRules.canRoll(betAmount, balance)
 
     fun setStrategy(type: BetStrategyType) {
         strategyType = type
@@ -126,44 +120,50 @@ class DiceGame(context: Context) {
      */
     fun rollOnce() {
         if (isRolling) return
-
-        // The Flutter controller changed out of the first-roll state even if
-        // the entered stake was invalid; an invalid roll otherwise did nothing.
-        isFirstRoll = false
-        notifyChanged()
-        if (!canRoll()) return
+        if (betAmount < MIN_BET || betAmount > MAX_BET || betAmount > balance) return
 
         isWin = false
         isRolling = true
+        isFirstRoll = false
         notifyChanged()
 
         var ticks = 0
         val step = object : Runnable {
             override fun run() {
                 ticks += 1
-                rolledDice = Random.nextInt(1, 7)
-                notifyChanged()
                 if (ticks < SHUFFLE_TICKS) {
+                    rolledDice = Random.nextInt(1, 7)
+                    notifyChanged()
                     handler.postDelayed(this, SHUFFLE_INTERVAL)
                 } else {
-                    settle(Random.nextInt(1, 7))
+                    settle()
                 }
             }
         }
-        handler.postDelayed(step, SHUFFLE_INTERVAL)
+        handler.post(step)
     }
 
-    private fun settle(result: Int) {
-        val settlement = DiceRules.settle(balance, betAmount, selectedDice, result)
-        balance = settlement.balance
-        isWin = settlement.isWin
+    private fun settle() {
+        val result = Random.nextInt(1, 7)
+        val win = result == selectedDice
+
+        val resultAmount: Double
+        if (win) {
+            resultAmount = betAmount * WIN_MULTIPLIER
+            balance += resultAmount
+        } else {
+            resultAmount = -betAmount
+            balance -= betAmount
+        }
+
+        isWin = win
         rolledDice = result
         isRolling = false
 
-        addHistory(result, settlement.resultAmount, settlement.isWin)
+        addHistory(result, resultAmount, win)
         saveHistory()
         notifyChanged()
-        listener?.onRollSettled(this, settlement.isWin)
+        listener?.onRollSettled(this, win)
     }
 
     // ------------------------------------------------------------------
@@ -173,8 +173,6 @@ class DiceGame(context: Context) {
     fun startAutoPlay() {
         if (isAutoPlaying || isRolling) return
 
-        isFirstRoll = false
-        notifyChanged()
         isAutoPlaying = true
         round = 0
         baseBet = betAmount
@@ -194,30 +192,31 @@ class DiceGame(context: Context) {
         betAmount = currentBet
         notifyChanged()
 
-        // An invalid stake makes the source controller's roll a no-op, but
-        // the auto-play loop still waits 500 ms and applies its strategy.
+        // Wait for any running roll to finish before starting the next one.
         if (isRolling) {
             handler.postDelayed({ playNextRound() }, SHUFFLE_INTERVAL + 50)
             return
         }
 
-        val willRoll = canRoll()
-        if (willRoll) rollOnce()
-
-        val roundDelay = if (willRoll) {
-            SHUFFLE_TICKS * SHUFFLE_INTERVAL + AUTO_PLAY_PAUSE
-        } else {
-            AUTO_PLAY_PAUSE
+        if (betAmount < MIN_BET || betAmount > MAX_BET || betAmount > balance) {
+            stopAutoPlay()
+            return
         }
+
+        rollOnce()
+
+        // Continue after the roll animation has surely finished.
         handler.postDelayed({
+            if (!isAutoPlaying) return@postDelayed
+
             applyStrategy()
 
             if (balance <= 0 || currentBet > balance) {
                 stopAutoPlay()
-            } else if (isAutoPlaying) {
+            } else {
                 playNextRound()
             }
-        }, roundDelay)
+        }, SHUFFLE_TICKS * SHUFFLE_INTERVAL + 350)
     }
 
     fun stopAutoPlay() {
@@ -228,13 +227,12 @@ class DiceGame(context: Context) {
     }
 
     private fun applyStrategy() {
-        currentBet = DiceRules.nextBet(
-            strategy = strategyType,
-            baseBet = baseBet,
-            currentBet = currentBet,
-            isWin = isWin,
-            multiplier = multiplier
-        )
+        when (strategyType) {
+            BetStrategyType.MARTINGALE ->
+                currentBet = if (isWin) baseBet else currentBet * multiplier
+            BetStrategyType.FIXED -> currentBet = baseBet
+            BetStrategyType.MANUAL -> Unit
+        }
     }
 
     // ------------------------------------------------------------------
@@ -271,49 +269,23 @@ class DiceGame(context: Context) {
     }
 
     private fun loadHistory() {
-        val nativeRaw = preferences.getString(KEY_HISTORY, null)
-        val flutterRaw = flutterPreferences.getString(FLUTTER_HISTORY_KEY, null)
-        val raw = nativeRaw ?: flutterRaw ?: return
+        val raw = preferences.getString(KEY_HISTORY, null) ?: return
         try {
             val array = JSONArray(raw)
             for (index in 0 until array.length()) {
                 val entry = array.getJSONObject(index)
                 history += DiceHistoryEntry(
-                    rolledDice = entry.optInt("rolledDice", entry.optInt("rolled")),
-                    selectedDice = entry.optInt("selectedDice", entry.optInt("selected")),
-                    betAmount = entry.optDouble("betAmount", entry.optDouble("bet")),
-                    resultAmount = entry.optDouble("resultAmount", entry.optDouble("result")),
-                    isWin = entry.optBoolean("isWin", entry.optBoolean("win")),
-                    timestamp = when {
-                        entry.has("timestamp") -> parseTimestamp(entry.optString("timestamp"))
-                        else -> entry.optLong("at")
-                    }
+                    rolledDice = entry.optInt("rolled"),
+                    selectedDice = entry.optInt("selected"),
+                    betAmount = entry.optDouble("bet"),
+                    resultAmount = entry.optDouble("result"),
+                    isWin = entry.optBoolean("win"),
+                    timestamp = entry.optLong("at")
                 )
             }
         } catch (_: Exception) {
             history.clear()
         }
-
-        // Preserve data created by either the earlier Kotlin port or the
-        // Flutter SharedPreferences plugin, then write the source JSON shape
-        // the next time a roll is settled.
-        if (nativeRaw == null && history.isNotEmpty()) saveHistory()
-    }
-
-    private fun parseTimestamp(value: String): Long {
-        val dateTime = value.substringBefore('.')
-        val zone = if (value.endsWith("Z")) "UTC" else null
-        val base = try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-                isLenient = false
-                if (zone != null) timeZone = java.util.TimeZone.getTimeZone(zone)
-            }.parse(dateTime)?.time ?: 0L
-        } catch (_: Exception) {
-            0L
-        }
-        val fraction = value.substringAfter('.', "").takeWhile(Char::isDigit)
-        val millis = fraction.take(3).padEnd(3, '0').toIntOrNull() ?: 0
-        return base + millis
     }
 
     private fun saveHistory() {
@@ -321,28 +293,23 @@ class DiceGame(context: Context) {
         for (entry in history) {
             array.put(
                 JSONObject()
-                    .put("rolledDice", entry.rolledDice)
-                    .put("selectedDice", entry.selectedDice)
-                    .put("betAmount", entry.betAmount)
-                    .put("resultAmount", entry.resultAmount)
-                    .put("isWin", entry.isWin)
-                    .put("timestamp", isoTimestamp(entry.timestamp))
+                    .put("rolled", entry.rolledDice)
+                    .put("selected", entry.selectedDice)
+                    .put("bet", entry.betAmount)
+                    .put("result", entry.resultAmount)
+                    .put("win", entry.isWin)
+                    .put("at", entry.timestamp)
             )
         }
         preferences.edit().putString(KEY_HISTORY, array.toString()).apply()
     }
-
-    private fun isoTimestamp(timestamp: Long): String =
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = java.util.TimeZone.getTimeZone("UTC")
-        }.format(Date(timestamp))
 
     private fun notifyChanged() {
         listener?.onGameChanged(this)
     }
 
     fun formatMoney(amount: Double): String =
-        "₦" + String.format(Locale.US, "%.2f", amount)
+        "₦" + String.format(Locale.US, "%,.2f", amount)
 
     fun release() {
         handler.removeCallbacksAndMessages(null)
@@ -352,20 +319,15 @@ class DiceGame(context: Context) {
     companion object {
         const val START_BALANCE = 500_000.0
         const val DEFAULT_BET = 100.0
-        // These values exist in the source constants/help copy, but the
-        // Flutter controller only enforced a positive stake up to balance.
         const val MIN_BET = 10
         const val MAX_BET = 100_000
-        const val WIN_MULTIPLIER = DiceRules.WIN_MULTIPLIER
+        const val WIN_MULTIPLIER = 5.0
         const val HISTORY_LIMIT = 100
 
         private const val SHUFFLE_TICKS = 10
         private const val SHUFFLE_INTERVAL = 80L
-        private const val AUTO_PLAY_PAUSE = 500L
         private const val PREFS_NAME = "dice_game"
         private const val KEY_HISTORY = "game_history"
-        private const val FLUTTER_PREFERENCES_NAME = "FlutterSharedPreferences"
-        private const val FLUTTER_HISTORY_KEY = "flutter.game_history"
 
         fun formatDate(timestamp: Long): String =
             SimpleDateFormat("d MMM yyyy", Locale.US).format(Date(timestamp))

@@ -3,17 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/action_search"
-        android:icon="@drawable/ic_search"
-        android:title="Search"
-        app:iconTint="@color/nextel_white"
-        app:showAsAction="always" />
-
-    <item
-        android:id="@+id/action_more"
-        android:icon="@drawable/ic_more"
-        android:title="More options"
-        app:iconTint="@color/nextel_white"
-        app:showAsAction="always" />
+        android:id="@+id/action_restart"
+        android:title="Restart"
+        android:icon="@drawable/ic_refresh"
+        app:showAsAction="always"
+        android:titleCondensed="Restart" />
 
 </menu>

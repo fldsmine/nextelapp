@@ -1,166 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#2C1E68">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/scoresToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#241756"
+        app:navigationIcon="@drawable/left_arrow"
+        app:title="High Scores"
+        app:titleTextColor="@color/nextel_white" />
+
+    <!-- Header row -->
 
     <LinearLayout
-        android:id="@+id/scoresContent"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#2C1E68"
-        android:orientation="vertical"
-        android:visibility="gone">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="10dp">
 
-        <FrameLayout
-            android:id="@+id/scoresTitleBar"
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:minHeight="72dp"
-            android:paddingStart="6dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="6dp"
-            android:paddingBottom="10dp">
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Rank"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-            <ImageButton
-                android:id="@+id/scoresHomeButton"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_gravity="start|center_vertical"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Home"
-                android:padding="10dp"
-                android:src="@drawable/ic_home" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:text="High Scores"
-                android:textColor="@color/nextel_white"
-                android:textSize="45sp"
-                android:fontFamily="sans-serif-light" />
-
-        </FrameLayout>
-
-        <LinearLayout
-            android:id="@+id/scoresColumns"
-            android:layout_width="match_parent"
+        <TextView
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingStart="12dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="10dp">
+            android:layout_weight="2"
+            android:gravity="center"
+            android:text="Date"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="Rank"
-                android:textColor="@color/nextel_white"
-                android:textSize="30sp"
-                android:fontFamily="sans-serif-light"
-                android:letterSpacing="0.03" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:gravity="center"
-                android:text="Date"
-                android:textColor="@color/nextel_white"
-                android:textSize="30sp"
-                android:fontFamily="sans-serif-light"
-                android:letterSpacing="0.03" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="Score"
-                android:textColor="@color/nextel_white"
-                android:textSize="30sp"
-                android:fontFamily="sans-serif-light"
-                android:letterSpacing="0.03" />
-
-        </LinearLayout>
-
-        <View
-            android:id="@+id/scoresDivider"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#33FFFFFF" />
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <LinearLayout
-                    android:id="@+id/scoresList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp" />
-
-            </ScrollView>
-
-        </FrameLayout>
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Score"
+            android:textColor="#B3FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 
-    <FrameLayout
-        android:id="@+id/scoresEmptyState"
+    <View
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#2C1E68"
-        android:visibility="gone">
+        android:layout_height="1dp"
+        android:background="#33FFFFFF" />
 
-        <TextView
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/scoresList"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="No Scores Yet!"
-            android:textColor="@color/nextel_white"
-            android:textSize="30sp" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp" />
 
-        <ImageButton
-            android:id="@+id/emptyScoresHomeButton"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="top|start"
-            android:layout_marginStart="6dp"
-            android:layout_marginTop="10dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Home"
-            android:padding="10dp"
-            android:src="@drawable/ic_home" />
+    </ScrollView>
 
-    </FrameLayout>
-
-    <FrameLayout
-        android:id="@+id/scoresLoading"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#2C1E68">
-
-        <com.airbnb.lottie.LottieAnimationView
-            android:id="@+id/scoresLoadingAnimation"
-            android:layout_width="150dp"
-            android:layout_height="150dp"
-            android:layout_gravity="center"
-            app:lottie_autoPlay="true"
-            app:lottie_loop="true"
-            app:lottie_rawRes="@raw/loading" />
-
-    </FrameLayout>
-
-</FrameLayout>
+</LinearLayout>

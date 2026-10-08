@@ -10,12 +10,10 @@
     android:paddingBottom="6dp"
     android:layout_marginEnd="8dp">
 
-    <ImageView
+    <pynith.apps.nextel.games.widget.DiceView
         android:id="@+id/historyDice"
         android:layout_width="26dp"
-        android:layout_height="26dp"
-        android:contentDescription="Rolled face"
-        android:scaleType="fitCenter" />
+        android:layout_height="26dp" />
 
     <TextView
         android:id="@+id/historyBet"

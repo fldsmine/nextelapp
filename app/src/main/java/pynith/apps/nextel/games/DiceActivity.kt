@@ -4,37 +4,36 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
-import androidx.activity.OnBackPressedCallback
-import com.bumptech.glide.Glide
+import android.widget.Toast
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
-import com.airbnb.lottie.LottieAnimationView
 import pynith.apps.nextel.R
 import pynith.apps.nextel.games.dice.BetStrategyType
 import pynith.apps.nextel.games.dice.DiceGame
 import pynith.apps.nextel.games.widget.ConfettiView
+import pynith.apps.nextel.games.widget.DiceView
 import pynith.apps.nextel.views.BaseActivity
-import java.util.Locale
 
-/** Native Android rendering of the original Flutter betting Dice screen. */
+/**
+ * The Flutter module's betting dice game: pick a face, stake an amount,
+ * roll — a match pays 5x. Includes the auto-play strategies and the
+ * persisted roll history with stats.
+ */
 class DiceActivity : BaseActivity(), DiceGame.Listener {
 
     private lateinit var game: DiceGame
 
-    private lateinit var firstRollDice: ImageView
-    private lateinit var rollingDice: LottieAnimationView
-    private lateinit var finalDice: ImageView
+    private lateinit var bigDice: DiceView
+    private lateinit var rollHint: TextView
     private lateinit var balanceText: TextView
     private lateinit var strategySpinner: Spinner
     private lateinit var betInput: TextInputEditText
@@ -48,15 +47,12 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
     private lateinit var noHistoryText: TextView
     private lateinit var confettiView: ConfettiView
 
-    private val selectorDice = mutableListOf<ImageView>()
-    private var activeDiceView: View? = null
+    private val selectorDice = mutableListOf<DiceView>()
     private var syncingBet = false
-    private var wasRolling = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dice)
-        SoundFx.initialize(applicationContext)
 
         game = DiceGame(this)
         game.listener = this
@@ -70,16 +66,13 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
                         showHelp()
                         true
                     }
-                    // The source screen's settings icon is intentionally a no-op.
-                    R.id.action_settings -> true
                     else -> false
                 }
             }
         }
 
-        firstRollDice = findViewById(R.id.firstRollDice)
-        rollingDice = findViewById(R.id.rollingDice)
-        finalDice = findViewById(R.id.finalDice)
+        bigDice = findViewById(R.id.bigDice)
+        rollHint = findViewById(R.id.rollHintText)
         balanceText = findViewById(R.id.balanceText)
         strategySpinner = findViewById(R.id.strategySpinner)
         betInput = findViewById(R.id.betInput)
@@ -93,10 +86,11 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
         noHistoryText = findViewById(R.id.noHistoryText)
         confettiView = findViewById(R.id.confettiView)
 
-        Glide.with(this).asGif().load(R.raw.dice_draw).into(firstRollDice)
+        selectorDice.add(findViewById(R.id.dice5))
+        selectorDice.add(findViewById(R.id.dice6))
 
         findViewById<MaterialButton>(R.id.fundWalletButton).setOnClickListener {
-            // The matching Flutter button did not have an action.
+            Toast.makeText(this, "Wallet funding is not available in the demo game.", Toast.LENGTH_SHORT).show()
         }
 
         setupSelectors()
@@ -106,28 +100,36 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
         playButton.setOnClickListener { play() }
         autoPlayButton.setOnClickListener { toggleAutoPlay() }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            // The original Dice screen uses PopScope(canPop: false); only its
-            // in-screen arrow opens the exit confirmation.
-            override fun handleOnBackPressed() = Unit
-        })
-
         render(game)
     }
 
     private fun setupSelectors() {
-        val ids = listOf(R.id.dice1, R.id.dice2, R.id.dice3, R.id.dice4, R.id.dice5, R.id.dice6)
-        ids.forEachIndexed { index, id ->
-            val value = index + 1
-            val dice = findViewById<ImageView>(id)
-            dice.setImageResource(DICE_FACES[index])
-            dice.setOnClickListener {
-                if (!game.isRolling) {
+        val row = findViewById<LinearLayout>(R.id.diceRow1)
+        for (value in 1..4) {
+            val dice = DiceView(this).apply {
+                accentColor = Color.WHITE
+                layoutParams = LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                    marginEnd = dp(10)
+                }
+                background = getDrawable(R.drawable.bg_dice_selector)
+                setOnClickListener {
                     SoundFx.click()
                     game.selectDice(value)
                 }
             }
+            dice.value = value
+            row.addView(dice)
             selectorDice += dice
+        }
+
+        for (value in 5..6) {
+            val dice = selectorDice.first { it.id == if (value == 5) R.id.dice5 else R.id.dice6 }
+            dice.accentColor = Color.WHITE
+            dice.value = value
+            dice.setOnClickListener {
+                SoundFx.click()
+                game.selectDice(value)
+            }
         }
     }
 
@@ -160,21 +162,41 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
                 if (syncingBet) return
                 val value = s?.toString()?.toDoubleOrNull() ?: 0.0
                 game.setBet(value)
+                renderStats(game)
             }
         })
     }
 
     private fun play() {
-        if (game.isRolling) return
-        // Invalid/non-positive stakes are silently ignored by the source
-        // controller after it leaves the first-roll animation state.
+        if (game.isRolling || game.isAutoPlaying) return
+
+        if (game.betAmount < DiceGame.MIN_BET) {
+            Toast.makeText(this, "Minimum bet is ₦${DiceGame.MIN_BET}.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (game.betAmount > DiceGame.MAX_BET) {
+            Toast.makeText(this, "Maximum bet is ₦${DiceGame.MAX_BET}.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (game.betAmount > game.balance) {
+            Toast.makeText(this, "Bet exceeds your wallet balance.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        SoundFx.diceRoll()
         game.rollOnce()
     }
 
     private fun toggleAutoPlay() {
         if (game.isAutoPlaying) {
             game.stopAutoPlay()
+            SoundFx.click()
         } else {
+            if (game.betAmount < DiceGame.MIN_BET || game.betAmount > game.balance) {
+                Toast.makeText(this, "Set a valid bet before auto play.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            SoundFx.click()
             game.startAutoPlay()
         }
     }
@@ -185,9 +207,6 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
 
     override fun onGameChanged(game: DiceGame) {
         if (isFinishing || isDestroyed) return
-        if (!wasRolling && game.isRolling) SoundFx.diceRoll()
-        if (wasRolling && !game.isRolling) SoundFx.diceStop()
-        wasRolling = game.isRolling
         render(game)
     }
 
@@ -195,19 +214,21 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
         if (isFinishing || isDestroyed) return
         render(game)
 
-        // The source plays result sounds for manual and automatic rolls, but
-        // only manual wins open the celebration dialog and confetti.
-        if (win) SoundFx.win() else SoundFx.lose()
+        // Auto play stays quiet; a manual winning roll celebrates.
         if (game.isAutoPlaying) return
         if (win) {
+            SoundFx.win()
             confettiView.burst()
             showWinDialog(game.betAmount * DiceGame.WIN_MULTIPLIER)
+        } else {
+            SoundFx.lose()
         }
     }
 
     override fun onAutoPlayFinished(game: DiceGame) {
         if (isFinishing || isDestroyed) return
         render(game)
+        Toast.makeText(this, "Auto play finished.", Toast.LENGTH_SHORT).show()
     }
 
     // ------------------------------------------------------------------
@@ -215,24 +236,34 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
     // ------------------------------------------------------------------
 
     private fun render(game: DiceGame) {
+        bigDice.value = game.rolledDice
         balanceText.text = game.formatMoney(game.balance)
 
         playButton.text = if (game.isRolling) "" else "PLAY NOW"
         playProgress.visibility = if (game.isRolling) View.VISIBLE else View.GONE
-        playButton.isEnabled = !game.isRolling
+        playButton.isEnabled = !game.isRolling && !game.isAutoPlaying
 
         autoPlayButton.text = if (game.isAutoPlaying) "STOP AUTO" else "AUTO PLAY"
-        autoPlayButton.isEnabled = true
+        autoPlayButton.isEnabled = !game.isRolling
 
-        renderDice(game)
+        rollHint.text = when {
+            game.isFirstRoll -> "Pick a face and press PLAY NOW"
+            game.isRolling -> "Rolling…"
+            game.isWin -> "You matched the dice!"
+            else -> "No match — try again!"
+        }
 
         selectorDice.forEachIndexed { index, dice ->
             dice.isSelected = game.selectedDice == index + 1
-            dice.contentDescription = "Select dice ${index + 1}"
+            dice.highlight = game.selectedDice == index + 1
         }
 
-        // Keep the bet field in sync when auto-play changes the stake.
-        val betText = game.betAmount.toString()
+        // Keep the bet field in sync (auto play changes the stake).
+        val betText = if (game.betAmount % 1.0 == 0.0) {
+            game.betAmount.toLong().toString()
+        } else {
+            game.betAmount.toString()
+        }
         if (betInput.text?.toString() != betText) {
             syncingBet = true
             betInput.setText(betText)
@@ -244,47 +275,9 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
         renderHistory(game)
     }
 
-    private fun renderDice(game: DiceGame) {
-        val target = when {
-            game.isFirstRoll -> firstRollDice
-            game.isRolling -> rollingDice
-            else -> finalDice.apply {
-                setImageResource(DICE_FACES[(game.rolledDice - 1).coerceIn(0, 5)])
-            }
-        }
-
-        if (game.isRolling && !rollingDice.isAnimating) rollingDice.playAnimation()
-        if (!game.isRolling && rollingDice.isAnimating) rollingDice.cancelAnimation()
-        showDiceState(target)
-    }
-
-    private fun showDiceState(target: View) {
-        if (activeDiceView === target) {
-            target.visibility = View.VISIBLE
-            return
-        }
-
-        val previous = activeDiceView
-        target.animate().cancel()
-        target.alpha = 0f
-        target.visibility = View.VISIBLE
-        target.animate().alpha(1f).setDuration(DICE_SWITCH_DURATION).start()
-
-        if (previous != null) {
-            previous.animate().cancel()
-            previous.animate().alpha(0f).setDuration(DICE_SWITCH_DURATION).withEndAction {
-                if (activeDiceView !== previous) {
-                    previous.visibility = View.GONE
-                    previous.alpha = 1f
-                }
-            }.start()
-        }
-        activeDiceView = target
-    }
-
     private fun renderStats(game: DiceGame) {
-        winRateText.text = String.format(Locale.US, "%.1f%%", game.winRatePercent)
-        profitText.text = "₦" + String.format(Locale.US, "%.0f", game.profit)
+        winRateText.text = String.format(java.util.Locale.US, "%.1f%%", game.winRatePercent)
+        profitText.text = game.formatMoney(game.profit).replace(".00", "")
         wlText.text = "${game.winCount}/${game.lossCount}"
     }
 
@@ -292,18 +285,14 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
         historyRow.removeAllViews()
         noHistoryText.visibility = if (game.history.isEmpty()) View.VISIBLE else View.GONE
 
-        // Source keeps the full rolling history (up to its 100-entry cap).
-        for (entry in game.history) {
-            val chip = layoutInflater
+        for (entry in game.history.take(30)) {
+            val chip = LayoutInflater.from(this)
                 .inflate(R.layout.item_dice_history, historyRow, false) as LinearLayout
-            chip.findViewById<ImageView>(R.id.historyDice)
-                .setImageResource(DICE_FACES[(entry.rolledDice - 1).coerceIn(0, 5)])
-            chip.findViewById<TextView>(R.id.historyBet).text = "₦${entry.betAmount}"
+            chip.findViewById<DiceView>(R.id.historyDice).value = entry.rolledDice
+            chip.findViewById<TextView>(R.id.historyBet).text = "₦${entry.betAmount.toLong()}"
             val resultView = chip.findViewById<TextView>(R.id.historyResult)
             resultView.text = if (entry.isWin) "WIN" else "LOSE"
-            resultView.setTextColor(
-                if (entry.isWin) Color.parseColor("#69F0AE") else Color.parseColor("#FF8A80")
-            )
+            resultView.setTextColor(if (entry.isWin) Color.parseColor("#69F0AE") else Color.parseColor("#FF8A80"))
             chip.setBackgroundResource(if (entry.isWin) R.drawable.bg_history_win else R.drawable.bg_history_lose)
             historyRow.addView(chip)
         }
@@ -319,45 +308,27 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
     }
 
     private fun showHelp() {
-        val helpText = "1. Select your dice (D4, D6, D8, D10, D12, D20).\n" +
-            "2. Enter your bet amount.\n" +
-            "3. Press the Play button to roll the dice.\n" +
-            "4. If you roll a 1, you lose your bet. If you roll a 6, you win 5x your bet!\n\n" +
-            "This is your developer section.\n\n" +
-            "You can place debug info, logs, API responses,\n" +
-            "or any internal tools here.\n\n" +
-            "Example:\n" +
-            "- App Version: 1.0.0\n" +
-            "- Environment: Development\n" +
-            "- API Status: Connected\n\n" +
-            "Add anything useful for debugging or testing."
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(18), dp(22), dp(28))
-            setBackgroundColor(Color.parseColor("#141A27"))
-        }
-        content.addView(TextView(this).apply {
-            text = "HOW TO PLAY"
-            textSize = 18f
-            setTextColor(Color.WHITE)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            gravity = Gravity.START
-        })
-        content.addView(TextView(this).apply {
-            text = helpText
-            textSize = 15f
-            setTextColor(Color.WHITE)
-            setPadding(0, dp(12), 0, 0)
-        })
-
-        BottomSheetDialog(this).apply {
-            setContentView(content)
-            show()
-        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("HOW TO PLAY")
+            .setMessage(
+                "1. Select your dice (1 – 6).\n" +
+                        "2. Enter your bet amount (₦10 – ₦100,000).\n" +
+                        "3. Press PLAY NOW to roll the dice.\n" +
+                        "4. If the dice lands on your number, you win 5× your bet — otherwise the bet is lost.\n\n" +
+                        "AUTO PLAY rolls up to 10 rounds using the selected strategy:\n" +
+                        "• Manual — keeps your stake.\n" +
+                        "• Martingale — doubles after a loss, resets after a win.\n" +
+                        "• Fixed — always returns to the base bet."
+            )
+            .setPositiveButton("Got it", null)
+            .show()
     }
 
     private fun confirmExit() {
+        if (!game.isAutoPlaying && !game.isRolling) {
+            finish()
+            return
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle("Exit Game")
             .setMessage("Are you sure you want to exit the current game?")
@@ -371,23 +342,10 @@ class DiceActivity : BaseActivity(), DiceGame.Listener {
 
     override fun onDestroy() {
         game.release()
-        rollingDice.cancelAnimation()
         SoundFx.release()
         super.onDestroy()
     }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
-
-    companion object {
-        private const val DICE_SWITCH_DURATION = 250L
-        private val DICE_FACES = intArrayOf(
-            R.drawable.game_dice_1,
-            R.drawable.game_dice_2,
-            R.drawable.game_dice_3,
-            R.drawable.game_dice_4,
-            R.drawable.game_dice_5,
-            R.drawable.game_dice_6
-        )
-    }
 }

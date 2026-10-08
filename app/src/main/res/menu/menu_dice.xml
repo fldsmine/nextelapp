@@ -4,14 +4,7 @@
 
     <item
         android:id="@+id/action_help"
-        android:icon="@drawable/ic_game_help"
         android:title="How to play"
-        app:showAsAction="always" />
-
-    <item
-        android:id="@+id/action_settings"
-        android:icon="@drawable/ic_game_settings"
-        android:title="Settings"
-        app:showAsAction="always" />
+        app:showAsAction="never" />
 
 </menu>

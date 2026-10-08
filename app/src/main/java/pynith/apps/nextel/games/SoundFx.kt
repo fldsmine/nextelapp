@@ -1,84 +1,57 @@
 package pynith.apps.nextel.games
 
-import android.content.Context
-import android.media.MediaPlayer
-import pynith.apps.nextel.R
+import android.media.AudioManager
+import android.media.ToneGenerator
 
-/** Bundled game sounds used by the Flutter reference, played natively. */
+/**
+ * Tiny asset-free sound effects for the games (the Flutter module played
+ * bundled audio files that are not part of the repository). Uses short DTMF
+ * style tones and fails silently on devices that cannot provide them.
+ */
 object SoundFx {
 
-    @Volatile
-    private var appContext: Context? = null
-    private var player: MediaPlayer? = null
+    private var tone: ToneGenerator? = null
 
-    fun initialize(context: Context) {
-        appContext = context.applicationContext
-    }
+    /** Tone volume (0..100). */
+    private const val VOLUME = 80
 
     @Synchronized
-    private fun play(resourceId: Int) {
-        val context = appContext ?: return
-        releasePlayer()
-
-        val next = try {
-            MediaPlayer.create(context, resourceId)
-        } catch (_: Exception) {
-            null
-        } ?: return
-
-        player = next
-        next.setOnCompletionListener { completed ->
-            synchronized(this@SoundFx) {
-                if (player === completed) player = null
-            }
-            completed.release()
-        }
-        next.setOnErrorListener { failed, _, _ ->
-            synchronized(this@SoundFx) {
-                if (player === failed) player = null
-            }
-            failed.release()
-            true
-        }
+    private fun play(toneType: Int, durationMs: Int) {
         try {
-            next.start()
+            if (tone == null) {
+                tone = ToneGenerator(AudioManager.STREAM_MUSIC, VOLUME)
+            }
+            tone?.startTone(toneType, durationMs)
         } catch (_: Exception) {
-            if (player === next) player = null
-            next.release()
+            tone = null
         }
     }
 
-    private fun releasePlayer() {
-        player?.let { current ->
-            player = null
-            try {
-                if (current.isPlaying) current.stop()
-            } catch (_: Exception) {
-                // The player may already have completed or failed.
-            }
-            try {
-                current.release()
-            } catch (_: Exception) {
-                // Already released.
-            }
-        }
+    fun click() = play(ToneGenerator.TONE_PROP_BEEP, 40)
+
+    fun diceRoll() = play(ToneGenerator.TONE_CDMA_PIP, 120)
+
+    fun pawnMove() = play(ToneGenerator.TONE_PROP_BEEP2, 45)
+
+    fun capture() {
+        play(ToneGenerator.TONE_CDMA_ABBR_ALERT, 200)
     }
 
-    fun click() = play(R.raw.click)
-    fun diceRoll() = play(R.raw.dice)
-    fun diceStop() = play(R.raw.move)
-    fun ludoRoll() = play(R.raw.roll_the_dice)
-    fun ludoMove() = play(R.raw.move)
-    fun capture() = play(R.raw.laugh)
-    fun win() = play(R.raw.win)
-    fun lose() = play(R.raw.lost)
+    fun win() {
+        play(ToneGenerator.TONE_PROP_ACK, 250)
+    }
 
-    /** Kept for any existing call sites; a pawn step uses the original move sound. */
-    fun pawnMove() = ludoMove()
+    fun lose() {
+        play(ToneGenerator.TONE_PROP_NACK, 250)
+    }
 
     @Synchronized
     fun release() {
-        releasePlayer()
-        appContext = null
+        try {
+            tone?.release()
+        } catch (_: Exception) {
+            // Already gone.
+        }
+        tone = null
     }
 }

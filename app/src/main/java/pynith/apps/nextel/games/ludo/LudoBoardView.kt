@@ -4,8 +4,6 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -16,12 +14,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.animation.LinearInterpolator
 import kotlin.math.min
-import pynith.apps.nextel.R
 import kotlin.math.sin
 
 /**
- * Draws the original bundled Ludo board image with native pawn overlays,
- * turn/winner artwork, ripple highlights, and animated cell-by-cell moves.
+ * Draws the Ludo board (Flutter module geometry): ring, colored start and
+ * home-column cells, star safe cells, yards, center triangles, pawns, the
+ * current-turn indicator and winner crowns. Pawns that may be picked get a
+ * pulsing highlight ring; moves are animated cell by cell.
  */
 class LudoBoardView @JvmOverloads constructor(
     context: Context,
@@ -35,15 +34,17 @@ class LudoBoardView @JvmOverloads constructor(
     private var game: LudoGame? = null
     private var highlighted: Set<Int> = emptySet()
 
-    private val boardBitmap = BitmapFactory.decodeResource(resources, R.drawable.ludo_board)
-    private val crownBitmaps: List<Bitmap> = listOf(
-        R.drawable.ludo_crown_1st,
-        R.drawable.ludo_crown_2nd,
-        R.drawable.ludo_crown_3rd
-    ).map { BitmapFactory.decodeResource(resources, it) }
-    private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val boardRect = RectF()
-    private val boardClipPath = Path()
+    private val boardPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cellBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = Color.parseColor("#C9D4CE")
+    }
+    private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        color = Color.parseColor("#8FA39A")
+    }
     private val pawnPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pawnBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -57,6 +58,11 @@ class LudoBoardView @JvmOverloads constructor(
     private val indicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
     }
+    private val crownPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+    }
+    private val cellRect = RectF()
+    private val centerPath = Path()
 
     private var cell = 0f
     private var originX = 0f
@@ -97,31 +103,11 @@ class LudoBoardView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val widthMode = MeasureSpec.getMode(widthMeasureSpec)
-        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
-        val width = MeasureSpec.getSize(widthMeasureSpec)
-        val height = MeasureSpec.getSize(heightMeasureSpec)
-        val size = when {
-            widthMode == MeasureSpec.EXACTLY && heightMode == MeasureSpec.EXACTLY -> min(width, height)
-            widthMode == MeasureSpec.EXACTLY -> width
-            heightMode == MeasureSpec.EXACTLY -> height
-            widthMode != MeasureSpec.UNSPECIFIED && heightMode != MeasureSpec.UNSPECIFIED -> min(width, height)
-            widthMode != MeasureSpec.UNSPECIFIED -> width
-            heightMode != MeasureSpec.UNSPECIFIED -> height
-            else -> dp(300f).toInt()
-        }
-        setMeasuredDimension(size, size)
-    }
-
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         cell = min(w, h) / 15f
         originX = (w - cell * 15f) / 2f
         originY = (h - cell * 15f) / 2f
-        boardRect.set(originX, originY, originX + cell * 15f, originY + cell * 15f)
-        boardClipPath.reset()
-        boardClipPath.addRoundRect(boardRect, dp(40f), dp(40f), Path.Direction.CW)
     }
 
     fun setState(game: LudoGame, highlighted: Set<Int>) {
@@ -166,7 +152,6 @@ class LudoBoardView @JvmOverloads constructor(
         pawnIndex: Int,
         startPoint: Pair<Float, Float>,
         waypoints: List<Pair<Float, Float>>,
-        onStep: () -> Unit = {},
         onDone: () -> Unit
     ) {
         val points = mutableListOf(startPoint)
@@ -181,7 +166,6 @@ class LudoBoardView @JvmOverloads constructor(
         suppressAnimEnd = false
 
         val duration = (points.size * 190L).coerceIn(200L, 2600L)
-        var lastSegment = -1
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             setDuration(duration)
             interpolator = LinearInterpolator()
@@ -191,10 +175,6 @@ class LudoBoardView @JvmOverloads constructor(
                 val segments = (state.points.size - 1).coerceAtLeast(1)
                 val position = fraction * segments
                 val index = position.toInt().coerceAtMost(segments - 1)
-                if (index != lastSegment) {
-                    lastSegment = index
-                    onStep()
-                }
                 val local = position - index
                 val (x1, y1) = state.points[index]
                 val (x2, y2) = state.points[index + 1]
@@ -222,92 +202,153 @@ class LudoBoardView @JvmOverloads constructor(
         val g = game ?: return
         if (cell <= 0f) return
 
-        val boardSave = canvas.save()
-        canvas.clipPath(boardClipPath)
-        drawBoard(canvas)
+        drawBoard(canvas, g)
         drawPawns(canvas, g)
-        drawHighlights(canvas, g)
 
-        // The animated pawn rides on top of all stationary pawns.
+        // Pulsing highlight on pickable pawns.
+        if (highlighted.isNotEmpty()) {
+            val phase = ((System.currentTimeMillis() - pulseStart) % 900) / 900f
+            val pulse = 0.5f + 0.5f * sin((phase * 2 * Math.PI).toFloat())
+            highlightPaint.strokeWidth = cell * (0.06f + 0.05f * pulse)
+            for (pawnIndex in highlighted) {
+                val (x, y) = pawnPixelPosition(g.currentTurn, pawnIndex)
+                canvas.drawCircle(x, y, cell * (0.42f + 0.06f * pulse), highlightPaint)
+            }
+        }
+
+        // The animated pawn rides on top.
         anim?.let { state ->
             drawPawn(canvas, state.x, state.y, state.type.color, cell * 0.36f)
         }
 
-        // Match the source Stack order: crowns, then turn text.
-        drawCrowns(canvas, g)
         drawTurnIndicator(canvas, g)
-        canvas.restoreToCount(boardSave)
+        drawCrowns(canvas, g)
     }
 
-    private fun drawBoard(canvas: Canvas) {
-        canvas.drawBitmap(boardBitmap, null, boardRect, bitmapPaint)
-    }
+    private fun drawBoard(canvas: Canvas, g: LudoGame) {
+        boardPaint.color = Color.WHITE
+        canvas.drawRoundRect(
+            originX + cell * 0.1f, originY + cell * 0.1f,
+            originX + cell * 14.9f, originY + cell * 14.9f,
+            cell * 0.8f, cell * 0.8f, boardPaint
+        )
 
-    private fun drawHighlights(canvas: Canvas, g: LudoGame) {
-        if (highlighted.isEmpty()) return
-        val phase = ((System.currentTimeMillis() - pulseStart) % 900L) / 900f
-        highlightPaint.strokeWidth = cell * 0.055f
-        highlightPaint.color = g.currentTurn.color
-        val minimumRadius = dp(20f)
+        // Ring cells with start-cell colors and star markers.
+        val startOwners = mapOf(
+            LudoBoard.cell(1, 6) to LudoPlayerType.GREEN,
+            LudoBoard.cell(8, 1) to LudoPlayerType.YELLOW,
+            LudoBoard.cell(13, 8) to LudoPlayerType.BLUE,
+            LudoBoard.cell(6, 13) to LudoPlayerType.RED
+        )
+        for (cellXy in LudoBoard.ring) {
+            val key = LudoBoard.cell(cellXy[0], cellXy[1])
+            cellRect.set(
+                originX + cellXy[0] * cell, originY + cellXy[1] * cell,
+                originX + (cellXy[0] + 1) * cell, originY + (cellXy[1] + 1) * cell
+            )
+            cellPaint.color = startOwners[key]?.color ?: Color.WHITE
+            canvas.drawRect(cellRect, cellPaint)
+            canvas.drawRect(cellRect, cellBorderPaint)
 
-        for (wave in 0 until 3) {
-            val wavePhase = (phase + wave / 3f) % 1f
-            highlightPaint.alpha = (220 * (1f - wavePhase)).toInt().coerceIn(0, 220)
-            val radius = minimumRadius + wavePhase * dp(15f)
-            for (pawnIndex in highlighted) {
-                val (x, y) = pawnPixelPosition(g.currentTurn, pawnIndex)
-                canvas.drawCircle(x, y, radius, highlightPaint)
+            if (key in LudoBoard.safeCells && key !in startOwners) {
+                val (cx, cy) = centerOf(cellXy[0].toFloat(), cellXy[1].toFloat())
+                starPaint.textSize = cell * 0.5f
+                canvas.drawText(STAR, cx, cy + cell * 0.18f, starPaint)
             }
         }
-        highlightPaint.alpha = 255
-    }
 
-    /** "Your turn!" and the current stage sit in the active player's yard. */
-    private fun drawTurnIndicator(canvas: Canvas, g: LudoGame) {
-        val (yardX, yardY) = when (g.currentTurn) {
-            LudoPlayerType.GREEN -> 0f to 0f
-            LudoPlayerType.YELLOW -> 9f to 0f
-            LudoPlayerType.BLUE -> 9f to 9f
-            LudoPlayerType.RED -> 0f to 9f
-        }
-        val centerX = originX + (yardX + 3f) * cell
-        val centerY = originY + (yardY + 3f) * cell
-        val stageText = when (g.gameState) {
-            LudoGameState.THROW_DICE -> "Roll the dice"
-            LudoGameState.PICK_PAWN -> "Pick a pawn"
-            LudoGameState.MOVING -> "Pawn is moving..."
-            LudoGameState.FINISH -> "Game is over"
+        // Colored home columns (each player's last 6 path cells).
+        for (type in LudoPlayerType.entries) {
+            val path = LudoBoard.path(type)
+            for (step in 51..LudoGame.FINAL_STEP) {
+                val homeCell = path[step]
+                cellRect.set(
+                    originX + homeCell[0] * cell, originY + homeCell[1] * cell,
+                    originX + (homeCell[0] + 1) * cell, originY + (homeCell[1] + 1) * cell
+                )
+                cellPaint.color = type.color
+                canvas.drawRect(cellRect, cellPaint)
+                canvas.drawRect(cellRect, cellBorderPaint)
+            }
         }
 
-        indicatorPaint.textAlign = Paint.Align.CENTER
-        indicatorPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-        indicatorPaint.isFakeBoldText = true
-        indicatorPaint.textSize = dp(12f)
-        indicatorPaint.color = g.currentTurn.color
-        canvas.drawText("Your turn!", centerX, centerY, indicatorPaint)
-
-        indicatorPaint.typeface = android.graphics.Typeface.DEFAULT
-        indicatorPaint.isFakeBoldText = false
-        indicatorPaint.textSize = dp(8f)
-        indicatorPaint.color = Color.BLACK
-        canvas.drawText(stageText, centerX, centerY + dp(12f), indicatorPaint)
+        drawCenterTriangles(canvas)
+        for (type in LudoPlayerType.entries) {
+            drawYard(canvas, type, g)
+        }
     }
 
-    /** Source crown artwork appears in the yards in finishing order. */
-    private fun drawCrowns(canvas: Canvas, g: LudoGame) {
-        val boardSize = cell * 15f
-        for ((rank, type) in g.winners.withIndex()) {
-            val image = crownBitmaps.getOrNull(rank) ?: continue
-            val x = originX + (if (type == LudoPlayerType.YELLOW || type == LudoPlayerType.BLUE) boardSize * 0.6f else 0f)
-            val y = originY + (if (type == LudoPlayerType.BLUE || type == LudoPlayerType.RED) boardSize * 0.6f else 0f)
-            val cardSize = boardSize * 0.4f
-            val destination = RectF(
-                x + cell,
-                y + cell,
-                x + cardSize - cell,
-                y + cardSize - cell
-            )
-            canvas.drawBitmap(image, null, destination, bitmapPaint)
+    private fun drawCenterTriangles(canvas: Canvas) {
+        val left = originX + 6 * cell
+        val top = originY + 6 * cell
+        val right = originX + 9 * cell
+        val bottom = originY + 9 * cell
+        val midX = originX + 7.5f * cell
+        val midY = originY + 7.5f * cell
+
+        // Green enters from the left, yellow from the top,
+        // blue from the right, red from the bottom (module geometry).
+        drawTriangle(canvas, left, top, left, bottom, midX, midY, LudoPlayerType.GREEN.color)
+        drawTriangle(canvas, left, top, right, top, midX, midY, LudoPlayerType.YELLOW.color)
+        drawTriangle(canvas, right, top, right, bottom, midX, midY, LudoPlayerType.BLUE.color)
+        drawTriangle(canvas, left, bottom, right, bottom, midX, midY, LudoPlayerType.RED.color)
+    }
+
+    private fun drawTriangle(
+        canvas: Canvas,
+        x1: Float, y1: Float,
+        x2: Float, y2: Float,
+        x3: Float, y3: Float,
+        color: Int
+    ) {
+        centerPath.reset()
+        centerPath.moveTo(x1, y1)
+        centerPath.lineTo(x2, y2)
+        centerPath.lineTo(x3, y3)
+        centerPath.close()
+        cellPaint.color = color
+        canvas.drawPath(centerPath, cellPaint)
+        canvas.drawPath(centerPath, cellBorderPaint)
+    }
+
+    private fun drawYard(canvas: Canvas, type: LudoPlayerType, g: LudoGame) {
+        // Yard corners from the module's home slots: green TL, yellow TR,
+        // blue BR, red BL.
+        val (startX, startY) = when (type) {
+            LudoPlayerType.GREEN -> 0 to 0
+            LudoPlayerType.YELLOW -> 9 to 0
+            LudoPlayerType.BLUE -> 9 to 9
+            LudoPlayerType.RED -> 0 to 9
+        }
+        val inset = cell * 0.35f
+        val left = originX + startX * cell + inset
+        val top = originY + startY * cell + inset
+        val right = originX + (startX + 6) * cell - inset
+        val bottom = originY + (startY + 6) * cell - inset
+        val radius = cell * 1.4f
+
+        cellPaint.color = type.color
+        canvas.drawRoundRect(left, top, right, bottom, radius, radius, cellPaint)
+
+        // Bright outline on the active player's yard.
+        if (g.currentTurn == type && !g.isFinished) {
+            highlightPaint.strokeWidth = cell * 0.14f
+            canvas.drawRoundRect(left, top, right, bottom, radius, radius, highlightPaint)
+        }
+
+        boardPaint.color = Color.WHITE
+        canvas.drawRoundRect(
+            left + cell * 0.85f, top + cell * 0.85f,
+            right - cell * 0.85f, bottom - cell * 0.85f,
+            radius * 0.7f, radius * 0.7f, boardPaint
+        )
+
+        for (slot in LudoBoard.yard(type)) {
+            val (cx, cy) = centerOf(slot[0], slot[1])
+            pawnPaint.color = type.color
+            canvas.drawCircle(cx, cy, cell * 0.34f, pawnPaint)
+            pawnPaint.color = Color.WHITE
+            canvas.drawCircle(cx, cy, cell * 0.22f, pawnPaint)
         }
     }
 
@@ -315,8 +356,7 @@ class LudoBoardView @JvmOverloads constructor(
         data class Placed(val type: LudoPlayerType, val index: Int, val x: Float, val y: Float)
 
         val placed = mutableListOf<Placed>()
-        val drawingOrder = LudoPlayerType.entries.filter { it != g.currentTurn } + g.currentTurn
-        for (type in drawingOrder) {
+        for (type in LudoPlayerType.entries) {
             for (pawn in 0 until 4) {
                 if (anim != null && anim!!.type == type && anim!!.pawnIndex == pawn) continue
                 val (x, y) = pawnPixelPosition(type, pawn)
@@ -339,6 +379,60 @@ class LudoBoardView @JvmOverloads constructor(
         canvas.drawCircle(x, y, radius, pawnPaint)
         pawnBorderPaint.strokeWidth = radius * 0.22f
         canvas.drawCircle(x, y, radius * 0.88f, pawnBorderPaint)
+    }
+
+    /** "Your turn!" + stage text pinned to the current player's corner. */
+    private fun drawTurnIndicator(canvas: Canvas, g: LudoGame) {
+        if (g.isFinished) return
+        val type = g.currentTurn
+        val boxLeft: Float
+        val boxTop: Float
+        when (type) {
+            LudoPlayerType.GREEN -> { boxLeft = originX + cell; boxTop = originY + cell }
+            LudoPlayerType.YELLOW -> { boxLeft = originX + 9 * cell; boxTop = originY + cell }
+            LudoPlayerType.BLUE -> { boxLeft = originX + 9 * cell; boxTop = originY + 9 * cell }
+            LudoPlayerType.RED -> { boxLeft = originX + cell; boxTop = originY + 9 * cell }
+        }
+        val cx = boxLeft + 2.5f * cell
+        val cy = boxTop + 2.5f * cell
+
+        val stageText = when (g.gameState) {
+            LudoGameState.THROW_DICE -> "Roll the dice"
+            LudoGameState.PICK_PAWN -> "Pick a pawn"
+            LudoGameState.MOVING -> "Pawn is moving…"
+            LudoGameState.FINISH -> "Game is over"
+        }
+
+        indicatorPaint.color = type.color
+        indicatorPaint.textSize = cell * 0.62f
+        indicatorPaint.isFakeBoldText = true
+        indicatorPaint.color = 0xCC000000.toInt()
+        canvas.drawText("${type.label}'s turn!", cx, cy, indicatorPaint)
+        indicatorPaint.color = type.color
+        canvas.drawText(stageText, cx, cy + cell * 0.75f, indicatorPaint)
+    }
+
+    /** 1st / 2nd / 3rd crowns on the winners' yards. */
+    private fun drawCrowns(canvas: Canvas, g: LudoGame) {
+        for ((rank, type) in g.winners.withIndex()) {
+            val (startX, startY) = when (type) {
+                LudoPlayerType.GREEN -> 0 to 0
+                LudoPlayerType.YELLOW -> 9 to 0
+                LudoPlayerType.BLUE -> 9 to 9
+                LudoPlayerType.RED -> 0 to 9
+            }
+            val cx = originX + (startX + 3) * cell
+            val cy = originY + (startY + 1.2f) * cell
+
+            crownPaint.color = when (rank) {
+                0 -> Color.parseColor("#FFC107") // 1st gold
+                1 -> Color.parseColor("#CFD8DC") // 2nd silver
+                else -> Color.parseColor("#D7A86E") // 3rd bronze
+            }
+            crownPaint.textSize = cell * 0.55f
+            crownPaint.isFakeBoldText = true
+            canvas.drawText("${CROWNS[rank]} ${RANK_LABELS[rank]}", cx, cy, crownPaint)
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -368,5 +462,9 @@ class LudoBoardView @JvmOverloads constructor(
         return true
     }
 
-    private fun dp(value: Float): Float = value * resources.displayMetrics.density
+    companion object {
+        const val STAR = "★"
+        val CROWNS = arrayOf("🥇", "🥈", "🥉")
+        val RANK_LABELS = arrayOf("1st", "2nd", "3rd")
+    }
 }

@@ -3,73 +3,66 @@ package pynith.apps.nextel.games
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.OnBackPressedCallback
-import com.bumptech.glide.Glide
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import pynith.apps.nextel.R
 import pynith.apps.nextel.games.ludo.LudoBoardView
 import pynith.apps.nextel.games.ludo.LudoGame
 import pynith.apps.nextel.games.ludo.LudoGameState
-import pynith.apps.nextel.games.ludo.LudoDiceView
+import pynith.apps.nextel.games.widget.DiceView
 import pynith.apps.nextel.views.BaseActivity
 import kotlin.random.Random
 
-/** Four-player pass-and-play Ludo from the original Flutter game. */
+/**
+ * The Flutter module's Ludo: four players share one device (green starts,
+ * then yellow, blue, red). Each player taps the dice on their turn and then
+ * taps one of their highlighted pawns. The game ends when three players have
+ * brought every pawn home.
+ */
 class LudoActivity : BaseActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
 
     private lateinit var game: LudoGame
     private lateinit var boardView: LudoBoardView
-    private lateinit var diceView: LudoDiceView
-    private lateinit var endGamePanel: LinearLayout
-    private lateinit var winnersText: TextView
+    private lateinit var diceView: DiceView
+    private lateinit var statusText: TextView
 
     private var busy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ludo)
-        SoundFx.initialize(applicationContext)
 
         findViewById<MaterialToolbar>(R.id.ludoToolbar).apply {
             setNavigationOnClickListener { confirmExit() }
             inflateMenu(R.menu.menu_ludo)
             setOnMenuItemClickListener { item ->
-                // The original screen's search and overflow buttons had no action.
-                item.itemId == R.id.action_search || item.itemId == R.id.action_more
+                when (item.itemId) {
+                    R.id.action_restart -> {
+                        confirmRestart()
+                        true
+                    }
+                    else -> false
+                }
             }
         }
 
         boardView = findViewById(R.id.boardView)
         diceView = findViewById(R.id.diceView)
-        endGamePanel = findViewById(R.id.endGamePanel)
-        winnersText = findViewById(R.id.winnersText)
-        val celebrationImage = findViewById<ImageView>(R.id.celebrationImage)
-        Glide.with(this).asGif().load(R.raw.ludo_thankyou).into(celebrationImage)
+        statusText = findViewById(R.id.statusText)
 
         boardView.onPawnPicked = { pawnIndex -> pickPawn(pawnIndex) }
         diceView.setOnClickListener { throwDice() }
-        newGame()
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            // Flutter PopScope(canPop: false) blocks system back; the in-screen
-            // arrow remains the explicit, confirmation-protected exit control.
-            override fun handleOnBackPressed() = Unit
-        })
+        newGame()
     }
 
     private fun newGame() {
         handler.removeCallbacksAndMessages(null)
         game = LudoGame()
         busy = false
-        endGamePanel.visibility = LinearLayout.GONE
-        diceView.value = 1
-        diceView.rolling = false
         diceView.accentColor = game.currentTurn.color
         diceView.highlight = true
         updateBoard()
@@ -81,10 +74,7 @@ class LudoActivity : BaseActivity() {
     }
 
     private fun setStatus(message: String) {
-        // The source displays this status inside the active yard, not in a
-        // separate banner. Keep both interactive surfaces accessible.
-        boardView.contentDescription = "Ludo board. $message"
-        diceView.contentDescription = "$message Current die face ${diceView.value}."
+        statusText.text = message
     }
 
     // ------------------------------------------------------------------
@@ -92,30 +82,29 @@ class LudoActivity : BaseActivity() {
     // ------------------------------------------------------------------
 
     private fun throwDice() {
-        if (busy || game.isFinished || game.gameState != LudoGameState.THROW_DICE) return
-
-        // The source lets a player who has already won tap the dice once to
-        // advance to the next non-winning player instead of rolling again.
-        if (game.currentTurn in game.winners) {
-            SoundFx.ludoRoll()
-            game.passTurn()
-            afterTurnState()
-            return
-        }
+        if (busy || game.isFinished) return
+        if (game.gameState != LudoGameState.THROW_DICE) return
 
         busy = true
-        SoundFx.ludoRoll()
+        SoundFx.diceRoll()
         diceView.highlight = false
-        diceView.rolling = true
 
-        // Flutter keeps the animated GIF visible for one second, then settles.
-        handler.postDelayed({
-            if (isFinishing || isDestroyed) return@postDelayed
-            val roll = game.rollDice()
-            diceView.rolling = false
-            diceView.value = roll
-            resolveRoll(roll)
-        }, DICE_REVEAL_DELAY)
+        // Shuffle animation, then settle on the roll.
+        val roll = game.rollDice()
+        var ticks = 0
+        val step = object : Runnable {
+            override fun run() {
+                ticks += 1
+                if (ticks >= SHUFFLE_TICKS) {
+                    diceView.value = roll
+                    handler.postDelayed({ resolveRoll(roll) }, SETTLE_PAUSE)
+                } else {
+                    diceView.value = (1..6).random()
+                    handler.postDelayed(this, SHUFFLE_INTERVAL)
+                }
+            }
+        }
+        handler.post(step)
     }
 
     private fun resolveRoll(roll: Int) {
@@ -137,6 +126,7 @@ class LudoActivity : BaseActivity() {
                     "No possible move with a $roll."
                 }
             )
+            // A 6 always earns another throw (module rule); otherwise pass on.
             handler.postDelayed({
                 busy = false
                 if (roll != 6) game.passTurn()
@@ -145,30 +135,24 @@ class LudoActivity : BaseActivity() {
             return
         }
 
+        // Single movable pawn: move it automatically.
         if (movable.size == 1) {
             game.awaitPick()
             updateBoard()
             setStatus("${player.label} rolled $roll.")
-            val pawn = movable.first()
-            handler.postDelayed({
-                busy = false
-                movePawn(pawn, singlePawnAutoMove = true)
-            }, AUTO_MOVE_DELAY)
+            handler.postDelayed({ movePawn(movable.first()) }, AUTO_MOVE_DELAY)
             return
         }
 
-        // Match the source's auto-selection: if every highlighted pawn shares
-        // the same step, choose randomly from indices 1..last (not index 0).
+        // Module rule: when every movable pawn sits on the same step, one of
+        // them is moved automatically.
         val steps = movable.map { game.step(player, it) }
         if (steps.distinct().size == 1) {
             game.awaitPick()
             updateBoard()
+            val pawn = movable[Random.nextInt(movable.size)]
             setStatus("${player.label} rolled $roll.")
-            val pawn = movable[Random.nextInt(1, movable.size)]
-            handler.postDelayed({
-                busy = false
-                movePawn(pawn)
-            }, AUTO_MOVE_DELAY)
+            handler.postDelayed({ movePawn(pawn) }, AUTO_MOVE_DELAY)
             return
         }
 
@@ -185,19 +169,15 @@ class LudoActivity : BaseActivity() {
         movePawn(pawnIndex)
     }
 
-    private fun movePawn(pawnIndex: Int, singlePawnAutoMove: Boolean = false) {
+    private fun movePawn(pawnIndex: Int) {
         if (busy) return
         busy = true
 
         val player = game.currentTurn
         val fromStep = game.step(player, pawnIndex)
         val startPoint = boardView.positionForStep(player, pawnIndex, fromStep)
-        val result = game.applyMove(
-            player,
-            pawnIndex,
-            game.diceResult,
-            singlePawnAutoMove = singlePawnAutoMove
-        )
+        val result = game.applyMove(player, pawnIndex, game.diceResult)
+
         val waypoints = result.pathSteps.map { step ->
             boardView.positionForStep(player, pawnIndex, step)
         }
@@ -205,13 +185,7 @@ class LudoActivity : BaseActivity() {
         updateBoard()
         setStatus("${player.label}'s pawn is moving…")
 
-        boardView.animatePawn(
-            type = player,
-            pawnIndex = pawnIndex,
-            startPoint = startPoint,
-            waypoints = waypoints,
-            onStep = { SoundFx.ludoMove() }
-        ) {
+        boardView.animatePawn(player, pawnIndex, startPoint, waypoints) {
             if (result.captures.isNotEmpty()) {
                 SoundFx.capture()
                 val names = result.captures.map { it.first.label }.distinct().joinToString()
@@ -237,6 +211,7 @@ class LudoActivity : BaseActivity() {
         }
     }
 
+    /** Refreshes dice highlight + status after a turn switch. */
     private fun afterTurnState() {
         if (game.isFinished) {
             showGameOver()
@@ -252,17 +227,44 @@ class LudoActivity : BaseActivity() {
         updateBoard()
         diceView.highlight = false
         val ranking = game.winners.joinToString(", ") { it.label.uppercase() }
-        winnersText.text = "The Winners is: $ranking"
-        endGamePanel.visibility = LinearLayout.VISIBLE
         setStatus("Game over — winners: $ranking")
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Thank you for playing 😙")
+            .setMessage("The winners are: $ranking")
+            .setCancelable(false)
+            .setPositiveButton("Play again") { _, _ -> newGame() }
+            .setNegativeButton("Exit") { _, _ -> finish() }
+            .show()
     }
 
+    // ------------------------------------------------------------------
+    // Exit / restart
+    // ------------------------------------------------------------------
+
     private fun confirmExit() {
+        if (game.isFinished) {
+            finish()
+            return
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle("Exit Game")
             .setMessage("Are you sure you want to exit the current game?")
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Proceed") { _, _ -> finish() }
+            .show()
+    }
+
+    private fun confirmRestart() {
+        if (game.isFinished) {
+            newGame()
+            return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Restart game?")
+            .setMessage("The current game will be lost.")
+            .setNegativeButton("Keep playing", null)
+            .setPositiveButton("Restart") { _, _ -> newGame() }
             .show()
     }
 
@@ -273,9 +275,11 @@ class LudoActivity : BaseActivity() {
     }
 
     companion object {
-        private const val DICE_REVEAL_DELAY = 1_000L
+        private const val SHUFFLE_TICKS = 12
+        private const val SHUFFLE_INTERVAL = 80L
+        private const val SETTLE_PAUSE = 250L
         private const val TURN_PAUSE = 900L
-        private const val LONG_PAUSE = 1_300L
+        private const val LONG_PAUSE = 1300L
         private const val AUTO_MOVE_DELAY = 450L
     }
 }

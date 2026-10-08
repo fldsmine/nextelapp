@@ -129,9 +129,6 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-    // Android Lottie renders the Dice roll and Hangman score-loading assets
-    // bundled with the original Flutter Games source.
-    implementation 'com.airbnb.android:lottie:6.6.7'
     implementation("com.google.zxing:core:3.5.3")
 
     implementation 'com.daimajia.easing:library:2.4@aar'
