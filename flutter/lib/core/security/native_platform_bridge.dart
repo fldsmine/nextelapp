@@ -230,15 +230,4 @@ class NativePlatformBridge {
       return false;
     }
   }
-
-  /// Opens Android's image-only ACTION_CHOOSER with gallery and camera intents.
-  /// The returned URI is a short-lived content URI, not a file-system path.
-  Future<Uri?> chooseWebViewImage() async {
-    try {
-      final value = await _channel.invokeMethod<String>('chooseWebViewImage');
-      return value == null ? null : Uri.tryParse(value);
-    } on MissingPluginException {
-      return null;
-    }
-  }
 }

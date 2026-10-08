@@ -258,26 +258,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Future<ShowFileChooserResponse?> _showFileChooser(
     InAppWebViewController controller,
-    ShowFileChooserRequest request,
+    ShowFileChooserRequest _,
   ) async {
     final currentUrl = await controller.getUrl();
     if (!_isTrustedUrl(currentUrl)) {
       return ShowFileChooserResponse(handledByClient: true);
     }
 
-    try {
-      final imageUri = await _nativeBridge.chooseWebViewImage();
-      if (imageUri == null || imageUri.scheme != 'content') {
-        return ShowFileChooserResponse(handledByClient: true);
-      }
-      return ShowFileChooserResponse(
-        handledByClient: true,
-        filePaths: [imageUri.toString()],
-      );
-    } catch (_) {
-      if (mounted) _showMessage('Could not open the image picker.');
-      return ShowFileChooserResponse(handledByClient: true);
-    }
+    // flutter_inappwebview's custom filePaths contract requires file:// URIs.
+    // Let its Android default chooser return gallery/FileProvider content://
+    // URIs directly through WebChromeClient's native ValueCallback instead.
+    return ShowFileChooserResponse(handledByClient: false);
   }
 
   Future<void> _loadTrustedPath(String path) async {

@@ -1,7 +1,6 @@
 package pynith.apps.nextel
 
 import android.Manifest
-import android.app.Activity
 import android.app.AlarmManager
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
@@ -40,9 +39,6 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
-    private var pendingImageChooserResult: MethodChannel.Result? = null
-    private var pendingCameraPhotoUri: Uri? = null
-    private var pendingCameraPhotoFile: File? = null
     private var pendingCanvasBytes: ByteArray? = null
     private var pendingCanvasResult: MethodChannel.Result? = null
     private var pendingNotificationPermissionResult: MethodChannel.Result? = null
@@ -80,7 +76,6 @@ class MainActivity : FlutterFragmentActivity() {
             "installApk" -> installApk(call, result)
             "saveCanvasImage" -> saveCanvasImage(call, result)
             "shareCanvasImage" -> shareCanvasImage(call, result)
-            "chooseWebViewImage" -> chooseWebViewImage(result)
             else -> result.notImplemented()
         }
     }
@@ -549,116 +544,6 @@ class MainActivity : FlutterFragmentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             == PackageManager.PERMISSION_GRANTED
 
-    /** Shows the same image gallery + external-camera chooser used by the legacy WebView. */
-    @Suppress("DEPRECATION")
-    private fun chooseWebViewImage(result: MethodChannel.Result) {
-        pendingImageChooserResult?.success(null)
-        pendingCameraPhotoFile?.delete()
-        pendingImageChooserResult = result
-        pendingCameraPhotoUri = null
-        pendingCameraPhotoFile = null
-
-        val galleryIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "image/*"
-        }
-        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if (cameraIntent.resolveActivity(packageManager) != null) {
-            try {
-                val picturesDirectory = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-                    ?: throw IllegalStateException("App picture storage is unavailable.")
-                val photoFile = File.createTempFile("nextel-web-", ".jpg", picturesDirectory)
-                val photoUri = FileProvider.getUriForFile(
-                    this,
-                    "$packageName.provider",
-                    photoFile
-                )
-                pendingCameraPhotoFile = photoFile
-                pendingCameraPhotoUri = photoUri
-                cameraIntent.apply {
-                    putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
-                    clipData = android.content.ClipData.newUri(
-                        contentResolver,
-                        "Captured image",
-                        photoUri
-                    )
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                }
-            } catch (_: Exception) {
-                pendingCameraPhotoFile?.delete()
-                pendingCameraPhotoFile = null
-                pendingCameraPhotoUri = null
-            }
-        }
-
-        val chooserIntent = Intent.createChooser(galleryIntent, "Image Chooser").apply {
-            pendingCameraPhotoUri?.let {
-                putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent))
-            }
-        }
-        try {
-            startActivityForResult(chooserIntent, REQUEST_WEB_IMAGE_CHOOSER)
-        } catch (_: ActivityNotFoundException) {
-            pendingImageChooserResult = null
-            pendingCameraPhotoFile?.delete()
-            pendingCameraPhotoFile = null
-            pendingCameraPhotoUri = null
-            result.error("image_chooser_unavailable", "No image picker is available.", null)
-        } catch (_: Exception) {
-            pendingImageChooserResult = null
-            pendingCameraPhotoFile?.delete()
-            pendingCameraPhotoFile = null
-            pendingCameraPhotoUri = null
-            result.error("image_chooser_failed", "Could not open the image picker.", null)
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == REQUEST_WEB_IMAGE_CHOOSER) {
-            completeImageChooser(resultCode, data)
-            return
-        }
-        super.onActivityResult(requestCode, resultCode, data)
-    }
-
-    private fun completeImageChooser(resultCode: Int, data: Intent?) {
-        val result = pendingImageChooserResult ?: run {
-            pendingCameraPhotoFile?.delete()
-            pendingCameraPhotoFile = null
-            pendingCameraPhotoUri = null
-            return
-        }
-        val cameraUri = pendingCameraPhotoUri
-        val cameraFile = pendingCameraPhotoFile
-        pendingImageChooserResult = null
-        pendingCameraPhotoUri = null
-        pendingCameraPhotoFile = null
-
-        if (resultCode != Activity.RESULT_OK) {
-            cameraFile?.delete()
-            result.success(null)
-            return
-        }
-
-        val galleryUri = data?.data
-            ?: data?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
-        val selectedUri = galleryUri ?: cameraUri?.takeIf(::hasNonEmptyContent)
-        if (selectedUri == null) {
-            cameraFile?.delete()
-            result.success(null)
-            return
-        }
-        if (selectedUri != cameraUri) cameraFile?.delete()
-        result.success(selectedUri.toString())
-    }
-
-    private fun hasNonEmptyContent(uri: Uri): Boolean = runCatching {
-        contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
-            descriptor.length > 0 || descriptor.parcelFileDescriptor.statSize > 0
-        } ?: false
-    }.getOrDefault(false)
-
     private fun saveCanvasImage(call: MethodCall, result: MethodChannel.Result) {
         val bytes = decodeImage(call.argument<String>("data"), result) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -789,7 +674,6 @@ class MainActivity : FlutterFragmentActivity() {
         const val APP_GATE_COOKIE_NAME = "app_gate"
         const val REQUEST_WRITE_CANVAS_PERMISSION = 7314
         const val REQUEST_NOTIFICATION_PERMISSION = 7315
-        const val REQUEST_WEB_IMAGE_CHOOSER = 20046
         const val MAX_CANVAS_BYTES = 32 * 1024 * 1024
 
         const val LEGACY_APP_PREFS = "app_prefs"
